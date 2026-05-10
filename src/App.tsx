@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CalendarPage } from "./app/routes/CalendarPage";
+import { FinancePage } from "./app/routes/FinancePage";
 import { EmployeesPage } from "./app/routes/EmployeesPage";
 import { GroupsPage } from "./app/routes/GroupsPage";
 import { KanbanPage } from "./app/routes/KanbanPage";
@@ -8,7 +9,7 @@ import { UiKitPage } from "./app/routes/UiKitPage";
 import type { SidebarNavigationKey } from "./components/layout/Sidebar";
 import { I18nProvider } from "./i18n";
 
-type AppView = "organization" | "groups" | "employees" | "calendar" | "kanban" | "ui-kit";
+type AppView = "organization" | "groups" | "employees" | "calendar" | "kanban" | "financeTariffs" | "financePayments" | "financeDebts" | "ui-kit";
 
 export function App() {
   const [view, setView] = useState<AppView>(() => {
@@ -17,11 +18,25 @@ export function App() {
     if (window.location.pathname === "/employees") return "employees";
     if (window.location.pathname === "/calendar") return "calendar";
     if (window.location.pathname === "/kanban") return "kanban";
+    if (window.location.pathname === "/finance" || window.location.pathname === "/finance/tariffs") return "financeTariffs";
+    if (window.location.pathname === "/finance/payments") return "financePayments";
+    if (window.location.pathname === "/finance/debts") return "financeDebts";
     return "organization";
   });
 
   const navigate = (key: SidebarNavigationKey) => {
-    if (key === "organization" || key === "groups" || key === "employees" || key === "calendar" || key === "kanban") setView(key);
+    if (
+      key === "organization" ||
+      key === "groups" ||
+      key === "employees" ||
+      key === "calendar" ||
+      key === "kanban" ||
+      key === "financeTariffs" ||
+      key === "financePayments" ||
+      key === "financeDebts"
+    ) {
+      setView(key);
+    }
   };
 
   return (
@@ -32,6 +47,9 @@ export function App() {
       {view === "employees" ? <EmployeesPage onNavigate={navigate} /> : null}
       {view === "calendar" ? <CalendarPage onNavigate={navigate} /> : null}
       {view === "kanban" ? <KanbanPage onNavigate={navigate} /> : null}
+      {view === "financeTariffs" ? <FinancePage section="tariffs" onNavigate={navigate} /> : null}
+      {view === "financePayments" ? <FinancePage section="payments" onNavigate={navigate} /> : null}
+      {view === "financeDebts" ? <FinancePage section="debts" onNavigate={navigate} /> : null}
     </I18nProvider>
   );
 }
