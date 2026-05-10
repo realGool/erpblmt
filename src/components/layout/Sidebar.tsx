@@ -22,6 +22,9 @@ export type SidebarNavigationKey =
   | "organization"
   | "groups"
   | "employees"
+  | "employeePayroll"
+  | "employeeCalendar"
+  | "employeeRoles"
   | "calendar"
   | "kanban"
   | "bilimtoy"
@@ -36,7 +39,7 @@ export type SidebarNavigationKey =
 const navItems = [
   { key: "organization", labelKey: "navigation.organization", icon: Building2 },
   { key: "groups", labelKey: "navigation.groups", icon: Users },
-  { key: "employees", labelKey: "navigation.employees", icon: UserRound },
+  { key: "employees", labelKey: "navigation.employees", icon: UserRound, expandable: true },
   { key: "calendar", labelKey: "navigation.calendar", icon: CalendarDays },
   { key: "kanban", labelKey: "navigation.kanban", icon: ListChecks },
   { key: "bilimtoy", labelKey: "navigation.bilimtoy", icon: BookOpen },
@@ -46,7 +49,15 @@ const navItems = [
   { key: "settings", labelKey: "navigation.settings", icon: Settings },
 ];
 
+const employeeNavigationKeys: SidebarNavigationKey[] = ["employees", "employeePayroll", "employeeCalendar", "employeeRoles"];
 const financeNavigationKeys: SidebarNavigationKey[] = ["finance", "financeTariffs", "financePayments", "financeDebts"];
+
+const employeeSubItems = [
+  { key: "employees", labelKey: "employees.tabs.employees" },
+  { key: "employeePayroll", labelKey: "employees.tabs.payroll" },
+  { key: "employeeCalendar", labelKey: "employees.tabs.calendar" },
+  { key: "employeeRoles", labelKey: "employees.tabs.roles" },
+] as const;
 
 const financeSubItems = [
   { key: "financeTariffs", labelKey: "finance.nav.tariffs" },
@@ -61,6 +72,7 @@ export interface SidebarProps {
 
 export function Sidebar({ activeNavigation = "organization", onNavigate }: SidebarProps) {
   const { t } = useI18n();
+  const [employeesOpen, setEmployeesOpen] = useState(() => employeeNavigationKeys.includes(activeNavigation));
   const [financeOpen, setFinanceOpen] = useState(() => financeNavigationKeys.includes(activeNavigation));
 
   return (
@@ -77,9 +89,11 @@ export function Sidebar({ activeNavigation = "organization", onNavigate }: Sideb
 
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navItems.map((item) => {
+          const isEmployeesGroup = item.key === "employees";
           const isFinanceGroup = item.key === "finance";
+          const isEmployeeActive = isEmployeesGroup && employeeNavigationKeys.includes(activeNavigation);
           const isFinanceActive = isFinanceGroup && financeNavigationKeys.includes(activeNavigation);
-          const isActive = activeNavigation === item.key || isFinanceActive;
+          const isActive = activeNavigation === item.key || isEmployeeActive || isFinanceActive;
           const ItemIcon = item.icon;
 
           return (
@@ -91,6 +105,11 @@ export function Sidebar({ activeNavigation = "organization", onNavigate }: Sideb
                   isActive ? "bg-primary-soft text-primary" : "text-text-secondary hover:bg-page hover:text-text-primary",
                 )}
                 onClick={() => {
+                  if (isEmployeesGroup) {
+                    setEmployeesOpen((open) => !open);
+                    return;
+                  }
+
                   if (isFinanceGroup) {
                     setFinanceOpen((open) => !open);
                     return;
@@ -98,14 +117,34 @@ export function Sidebar({ activeNavigation = "organization", onNavigate }: Sideb
 
                   onNavigate?.(item.key as SidebarNavigationKey);
                 }}
-                aria-expanded={isFinanceGroup ? financeOpen : undefined}
+                aria-expanded={isEmployeesGroup ? employeesOpen : isFinanceGroup ? financeOpen : undefined}
               >
                 <ItemIcon className="h-5 w-5" />
                 <span className="min-w-0 flex-1">{t(item.labelKey)}</span>
-                {isFinanceGroup ? (
-                  financeOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
+                {isEmployeesGroup || isFinanceGroup ? (
+                  (isEmployeesGroup ? employeesOpen : financeOpen) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
                 ) : null}
               </button>
+
+              {isEmployeesGroup && employeesOpen ? (
+                <div className="mt-1 space-y-1 pl-8">
+                  {employeeSubItems.map((subItem) => (
+                    <button
+                      key={subItem.key}
+                      type="button"
+                      className={cn(
+                        "flex h-9 w-full items-center rounded-input px-3 text-left text-sm font-medium transition-colors",
+                        activeNavigation === subItem.key
+                          ? "bg-primary-soft text-primary"
+                          : "text-text-secondary hover:bg-page hover:text-text-primary",
+                      )}
+                      onClick={() => onNavigate?.(subItem.key)}
+                    >
+                      {t(subItem.labelKey)}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
 
               {isFinanceGroup && financeOpen ? (
                 <div className="mt-1 space-y-1 pl-8">
