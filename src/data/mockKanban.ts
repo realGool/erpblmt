@@ -1,0 +1,190 @@
+export type KanbanColumnId = "new" | "inProgress" | "review" | "done";
+export type KanbanTaskType = "education" | "organization" | "parents" | "observation";
+export type KanbanPriority = "low" | "medium" | "high";
+
+export interface KanbanTask {
+  id: string;
+  title: string;
+  description: string;
+  type: KanbanTaskType;
+  status: KanbanColumnId;
+  priority: KanbanPriority;
+  dueDate: string;
+  group: string;
+  child: string;
+  assignee: string;
+  comments: number;
+  logs: number;
+  timeInStatus?: string;
+  completedAt?: string;
+}
+
+export const kanbanColumns: Array<{ id: KanbanColumnId; count: number }> = [
+  { id: "new", count: 8 },
+  { id: "inProgress", count: 7 },
+  { id: "review", count: 6 },
+  { id: "done", count: 12 },
+];
+
+export const kanbanTasks: KanbanTask[] = [
+  {
+    id: "KAN-101",
+    title: "Подготовить материалы к занятию по теме недели",
+    description: "Подготовить рабочие листы, карточки и презентацию для занятия по теме «Весна в природе».",
+    type: "education",
+    status: "new",
+    priority: "medium",
+    dueDate: "19 мая 2026",
+    group: "Жасмин",
+    child: "Не привязан",
+    assignee: "Айжан Т.",
+    comments: 3,
+    logs: 4,
+  },
+  {
+    id: "KAN-102",
+    title: "Заполнить карту развития по ребёнку",
+    description: "Обновить наблюдения по социально-эмоциональному развитию и речи.",
+    type: "observation",
+    status: "new",
+    priority: "low",
+    dueDate: "20 мая 2026",
+    group: "Жасмин",
+    child: "Амир С.",
+    assignee: "Гульнар К.",
+    comments: 1,
+    logs: 2,
+  },
+  {
+    id: "KAN-103",
+    title: "Проверить план занятий на неделю",
+    description: "Сверить план занятий с возрастной категорией и текущей темой месяца.",
+    type: "education",
+    status: "new",
+    priority: "medium",
+    dueDate: "21 мая 2026",
+    group: "Солнышко",
+    child: "Не привязан",
+    assignee: "Марина Л.",
+    comments: 0,
+    logs: 1,
+  },
+  {
+    id: "KAN-104",
+    title: "Организовать праздник весны",
+    description: "Подготовить сценарий, распределить ответственных и согласовать музыкальную программу.",
+    type: "organization",
+    status: "inProgress",
+    priority: "high",
+    dueDate: "18 мая 2026",
+    group: "Звёздочки",
+    child: "Не привязан",
+    assignee: "Айжан Т.",
+    comments: 4,
+    logs: 5,
+    timeInStatus: "1 д 4 ч",
+  },
+  {
+    id: "KAN-105",
+    title: "Подготовить отчёт по посещаемости",
+    description: "Собрать данные посещаемости за неделю и передать администратору.",
+    type: "organization",
+    status: "inProgress",
+    priority: "high",
+    dueDate: "17 мая 2026",
+    group: "Жасмин",
+    child: "Не привязан",
+    assignee: "Светлана Р.",
+    comments: 2,
+    logs: 3,
+    timeInStatus: "2 д 7 ч",
+  },
+  {
+    id: "KAN-106",
+    title: "Наблюдение за речевым развитием",
+    description: "Отметить показатели речи и коммуникации в карте развития.",
+    type: "observation",
+    status: "inProgress",
+    priority: "medium",
+    dueDate: "18 мая 2026",
+    group: "Радуга",
+    child: "София М.",
+    assignee: "Гульнар К.",
+    comments: 1,
+    logs: 2,
+    timeInStatus: "3 ч 12 м",
+  },
+  {
+    id: "KAN-107",
+    title: "Провести консультацию с родителем",
+    description: "Обсудить адаптацию ребёнка и договориться о домашней поддержке.",
+    type: "parents",
+    status: "review",
+    priority: "medium",
+    dueDate: "16 мая 2026",
+    group: "Юлдуз",
+    child: "Данияр К.",
+    assignee: "Марина Л.",
+    comments: 2,
+    logs: 3,
+  },
+  {
+    id: "KAN-108",
+    title: "Ответить на обращение родителя по питанию",
+    description: "Проверить меню и подготовить ответ по аллергии ребёнка.",
+    type: "parents",
+    status: "review",
+    priority: "high",
+    dueDate: "15 мая 2026",
+    group: "Жасмин",
+    child: "Аделя Б.",
+    assignee: "Светлана Р.",
+    comments: 5,
+    logs: 4,
+  },
+  {
+    id: "KAN-109",
+    title: "Заполнить карту развития по ребёнку",
+    description: "Итоговая проверка карты развития за текущий цикл наблюдения.",
+    type: "observation",
+    status: "done",
+    priority: "medium",
+    dueDate: "14 мая 2026",
+    group: "Жасмин",
+    child: "Тимур А.",
+    assignee: "Гульнар К.",
+    comments: 1,
+    logs: 6,
+    completedAt: "14 мая 2026",
+  },
+  {
+    id: "KAN-110",
+    title: "Подготовить материалы к занятию по теме недели",
+    description: "Подготовить карточки для утреннего занятия.",
+    type: "education",
+    status: "done",
+    priority: "low",
+    dueDate: "13 мая 2026",
+    group: "Солнышко",
+    child: "Не привязан",
+    assignee: "Марина Л.",
+    comments: 0,
+    logs: 2,
+    completedAt: "13 мая 2026",
+  },
+  {
+    id: "KAN-111",
+    title: "Организовать утренник ко Дню Победы",
+    description: "Согласовать программу и список участников.",
+    type: "organization",
+    status: "done",
+    priority: "medium",
+    dueDate: "12 мая 2026",
+    group: "Звёздочки",
+    child: "Не привязан",
+    assignee: "Айжан Т.",
+    comments: 3,
+    logs: 7,
+    completedAt: "12 мая 2026",
+  },
+];

@@ -6,6 +6,7 @@ import {
   CalendarDays,
   ChevronLeft,
   CreditCard,
+  ListChecks,
   Settings,
   UserRound,
   Users,
@@ -19,6 +20,7 @@ export type SidebarNavigationKey =
   | "groups"
   | "employees"
   | "calendar"
+  | "kanban"
   | "bilimtoy"
   | "finance"
   | "analytics"
@@ -30,6 +32,7 @@ const navItems = [
   { key: "groups", labelKey: "navigation.groups", icon: Users },
   { key: "employees", labelKey: "navigation.employees", icon: UserRound },
   { key: "calendar", labelKey: "navigation.calendar", icon: CalendarDays },
+  { key: "kanban", labelKey: "navigation.kanban", icon: ListChecks },
   { key: "bilimtoy", labelKey: "navigation.bilimtoy", icon: BookOpen },
   { key: "finance", labelKey: "navigation.finance", icon: CreditCard },
   { key: "analytics", labelKey: "navigation.analytics", icon: BarChart3 },
