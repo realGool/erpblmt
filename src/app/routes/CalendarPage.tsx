@@ -23,8 +23,10 @@ import {
   Button,
   Card,
   CardContent,
+  FilterBar,
   Input,
   Modal,
+  SearchField,
   Select,
   StatusBadge,
   Textarea,
@@ -65,6 +67,7 @@ export function CalendarPage({ onNavigate }: CalendarPageProps) {
   const { t } = useI18n();
   const [selectedDay, setSelectedDay] = useState(22);
   const [viewMode, setViewMode] = useState("month");
+  const [search, setSearch] = useState("");
   const [eventFilter, setEventFilter] = useState("all");
   const [employeeFilter, setEmployeeFilter] = useState("all");
   const [groupFilter, setGroupFilter] = useState("all");
@@ -72,17 +75,31 @@ export function CalendarPage({ onNavigate }: CalendarPageProps) {
   const [readKanbanTask, setReadKanbanTask] = useState<KanbanTask | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
+  const filteredEvents = useMemo(() => {
+    const normalizedSearch = search.trim().toLocaleLowerCase();
+    return calendarEvents.filter((event) => {
+      const matchesSearch =
+        !normalizedSearch ||
+        event.title.toLocaleLowerCase().includes(normalizedSearch) ||
+        event.description.toLocaleLowerCase().includes(normalizedSearch);
+      const matchesEvent = eventFilter === "all" || event.category === eventFilter;
+      const matchesEmployee = employeeFilter === "all" || event.responsibleName.toLocaleLowerCase().includes(employeeFilter);
+      const matchesGroup = groupFilter === "all" || event.group.toLocaleLowerCase().includes(groupFilter);
+      return matchesSearch && matchesEvent && matchesEmployee && matchesGroup;
+    });
+  }, [employeeFilter, eventFilter, groupFilter, search]);
+
   const eventsByDay = useMemo(() => {
-    return calendarEvents.reduce<Record<number, CalendarEvent[]>>((acc, event) => {
+    return filteredEvents.reduce<Record<number, CalendarEvent[]>>((acc, event) => {
       acc[event.day] = [...(acc[event.day] ?? []), event];
       return acc;
     }, {});
-  }, []);
+  }, [filteredEvents]);
 
   const selectedEvents = eventsByDay[selectedDay] ?? [];
 
   return (
-    <AppShell activeNavigation="calendar" onNavigate={onNavigate}>
+    <AppShell activeNavigation="employeeCalendar" onNavigate={onNavigate}>
       <PageContainer>
         <PageHeader
           title={t("calendar.page.title")}
@@ -98,33 +115,45 @@ export function CalendarPage({ onNavigate }: CalendarPageProps) {
         <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-5">
             <Card>
-              <CardContent className="flex flex-col gap-4 2xl:flex-row 2xl:items-center 2xl:justify-between">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button variant="outline" size="icon" aria-label={t("common.actions.previous")}>
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" aria-label={t("common.actions.next")}>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" rightIcon={<CalendarDays className="h-4 w-4" />}>
-                    {t("calendar.month.current")}
-                  </Button>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  {["month", "week", "list"].map((mode) => (
-                    <Button
-                      key={mode}
-                      variant={viewMode === mode ? "primary" : "outline"}
-                      onClick={() => setViewMode(mode)}
-                    >
-                      {t(`calendar.view.${mode}`)}
-                    </Button>
-                  ))}
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:min-w-[520px]">
+              <CardContent>
+                <FilterBar
+                  left={
+                    <>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button variant="outline" size="icon" aria-label={t("common.actions.previous")}>
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="icon" aria-label={t("common.actions.next")}>
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" rightIcon={<CalendarDays className="h-4 w-4" />}>
+                          {t("calendar.month.current")}
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {["month", "week", "list"].map((mode) => (
+                          <Button
+                            key={mode}
+                            variant={viewMode === mode ? "primary" : "outline"}
+                            onClick={() => setViewMode(mode)}
+                          >
+                            {t(`calendar.view.${mode}`)}
+                          </Button>
+                        ))}
+                      </div>
+                      <SearchField
+                        className="min-w-72 flex-1"
+                        aria-label={t("calendar.filters.search")}
+                        placeholder={t("calendar.filters.search")}
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                      />
+                    </>
+                  }
+                  right={
+                    <>
                   <Select
+                    label={t("calendar.filters.allEvents")}
                     value={eventFilter}
                     onChange={(event) => setEventFilter(event.target.value)}
                     options={[
@@ -135,24 +164,28 @@ export function CalendarPage({ onNavigate }: CalendarPageProps) {
                     ]}
                   />
                   <Select
+                    label={t("calendar.filters.allEmployees")}
                     value={employeeFilter}
                     onChange={(event) => setEmployeeFilter(event.target.value)}
                     options={[
                       { label: t("calendar.filters.allEmployees"), value: "all" },
-                      { label: "Иванова Анна Сергеевна", value: "ivanova" },
-                      { label: "Петрова Мария Ивановна", value: "petrova" },
+                      { label: "Иванова Анна Сергеевна", value: "иванова" },
+                      { label: "Петрова Мария Ивановна", value: "петрова" },
                     ]}
                   />
                   <Select
+                    label={t("calendar.filters.allGroups")}
                     value={groupFilter}
                     onChange={(event) => setGroupFilter(event.target.value)}
                     options={[
                       { label: t("calendar.filters.allGroups"), value: "all" },
-                      { label: "Группа «Солнышко»", value: "sun" },
-                      { label: "Группа «Радуга»", value: "rainbow" },
+                      { label: "Группа «Солнышко»", value: "солнышко" },
+                      { label: "Группа «Радуга»", value: "радуга" },
                     ]}
                   />
-                </div>
+                    </>
+                  }
+                />
               </CardContent>
             </Card>
 
@@ -168,17 +201,8 @@ export function CalendarPage({ onNavigate }: CalendarPageProps) {
                 {viewMode === "month" ? (
                   <MonthCalendarGrid eventsByDay={eventsByDay} selectedDay={selectedDay} onDaySelect={setSelectedDay} onEventOpen={setReadEvent} />
                 ) : null}
-                {viewMode === "week" ? <WeekCalendarView events={calendarEvents} onEventOpen={setReadEvent} /> : null}
-                {viewMode === "list" ? <ListCalendarView events={calendarEvents} onEventOpen={setReadEvent} /> : null}
-
-                <div className="flex flex-wrap gap-3 border-t border-border pt-4">
-                  {Object.keys(categoryClasses).map((category) => (
-                    <div key={category} className="flex items-center gap-2 text-xs font-medium text-text-secondary">
-                      <span className={cn("h-2.5 w-2.5 rounded-full", categoryClasses[category as CalendarEventCategory].dot)} />
-                      {t(`calendar.categories.${category}`)}
-                    </div>
-                  ))}
-                </div>
+                {viewMode === "week" ? <WeekCalendarView events={filteredEvents} onEventOpen={setReadEvent} /> : null}
+                {viewMode === "list" ? <ListCalendarView events={filteredEvents} onEventOpen={setReadEvent} /> : null}
                 <p className="text-xs text-text-muted">{t("calendar.hints.dayClick")}</p>
               </CardContent>
             </Card>
@@ -659,15 +683,6 @@ function AddEventModal({ open, onClose }: { open: boolean; onClose: () => void }
         </div>
 
         <aside className="space-y-4">
-          <div className="rounded-card border border-border bg-page/50 p-4">
-            <div className="text-sm font-semibold text-text-primary">{t("calendar.add.previewTitle")}</div>
-            <div className={cn("mt-4 rounded-input p-3", categoryClasses[eventCategory].surface)}>
-              <div className={cn("text-xs font-semibold", categoryClasses[eventCategory].text)}>{t(`calendar.categories.${eventCategory}`)}</div>
-              <div className="mt-2 font-semibold text-text-primary">{eventTitle || t("calendar.add.previewEmptyTitle")}</div>
-              <div className="mt-2 text-xs text-text-secondary">01.05.2026, 09:00 – 13:00</div>
-            </div>
-          </div>
-
           <div className="rounded-card border border-purple-bg bg-purple-bg/30 p-4">
             <div className="flex items-start gap-3">
               <CheckSquare className="mt-0.5 h-5 w-5 text-purple-text" />

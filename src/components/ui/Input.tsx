@@ -29,6 +29,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             className={cn(
               "focus-ring h-10 w-full rounded-input border bg-surface px-3 text-sm text-text-primary shadow-card transition-colors",
               "placeholder:text-text-muted disabled:bg-page disabled:text-text-muted",
+              props.type === "file" && "flex h-12 items-center py-2 file:mr-4 file:h-8 file:rounded-button file:border-0 file:bg-primary-soft file:px-4 file:text-sm file:font-medium file:text-primary hover:file:bg-info-bg",
               leftIcon && "pl-10",
               rightIcon && "pr-10",
               error ? "border-danger-text" : "border-border",

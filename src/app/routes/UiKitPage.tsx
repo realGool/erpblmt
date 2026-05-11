@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Bell, CheckCircle2, ChevronRight, Download, Plus, Search, Settings } from "lucide-react";
+import { Bell, CalendarDays, CheckCircle2, ChevronRight, Download, Plus, Search, Settings, Users, WalletCards } from "lucide-react";
 import { AppShell, PageContainer, PageHeader } from "../../components/layout";
 import {
   Avatar,
@@ -14,6 +14,7 @@ import {
   Checkbox,
   CrudSelect,
   EmptyState,
+  IconBadge,
   Input,
   Modal,
   Pagination,
@@ -269,6 +270,30 @@ export function UiKitPage() {
                 </CardContent>
               </Card>
             </div>
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle>Цветные иконки</CardTitle>
+                <CardDescription>Плашки для карточек, summary-блоков, заголовков секций и быстрых метрик.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {[
+                  { label: "Команда", tone: "primary" as const, icon: <Users /> },
+                  { label: "Расписание", tone: "info" as const, icon: <CalendarDays /> },
+                  { label: "Статус", tone: "success" as const, icon: <CheckCircle2 /> },
+                  { label: "Финансы", tone: "warning" as const, icon: <WalletCards /> },
+                  { label: "Уведомления", tone: "danger" as const, icon: <Bell /> },
+                  { label: "Настройки", tone: "purple" as const, icon: <Settings /> },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-3 rounded-card border border-border px-4 py-3">
+                    <IconBadge icon={item.icon} tone={item.tone} />
+                    <div>
+                      <div className="text-sm font-medium text-text-primary">{item.label}</div>
+                      <div className="text-xs text-text-muted">Reusable UI kit pattern</div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
           </Section>
 
           <Section title={t("uiKit.sections.table.title")} description={t("uiKit.sections.table.description")}>

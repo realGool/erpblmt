@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Fragment } from "react";
 import type { ReactNode } from "react";
 import {
   ArrowLeftRight,
@@ -17,8 +18,8 @@ import {
   Lock,
   MessageSquare,
   Paperclip,
+  PencilLine,
   Plus,
-  Search,
   Send,
   Smile,
   User,
@@ -44,8 +45,12 @@ import {
   FilterBar,
   Input,
   Modal,
+  MessageComposer,
+  ModalFooter,
   NicuDistributionCard,
   Pagination,
+  SearchField,
+  SearchableSelect,
   Select,
   StackedNicuBar,
   StatsCard,
@@ -67,7 +72,8 @@ import {
   type GroupDetail,
   type GroupRecord,
   type GroupStatus,
-type ParentTicketStatus,
+  type ParentTicket,
+  type ParentTicketStatus,
 } from "../../data/mockGroups";
 import { useI18n } from "../../i18n";
 import { cn } from "../../lib/cn";
@@ -77,7 +83,7 @@ interface GroupsPageProps {
 }
 
 const allValue = "all";
-type GroupModal = "addChild" | "chat" | "ticket" | "attendance" | "history" | null;
+type GroupModal = "addChild" | "chat" | "ticket" | "ticketsList" | "attendance" | "history" | null;
 
 export function GroupsPage({ onNavigate }: GroupsPageProps) {
   const { t } = useI18n();
@@ -86,9 +92,12 @@ export function GroupsPage({ onNavigate }: GroupsPageProps) {
   const [ageCategory, setAgeCategory] = useState(allValue);
   const [direction, setDirection] = useState(allValue);
   const [status, setStatus] = useState(allValue);
+  const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const [comparisonOpen, setComparisonOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<GroupModal>(null);
   const [activeTicketId, setActiveTicketId] = useState("#1256");
   const [placeholderTitle, setPlaceholderTitle] = useState<string | null>(null);
@@ -97,17 +106,25 @@ export function GroupsPage({ onNavigate }: GroupsPageProps) {
   const filteredGroups = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase();
 
-    return mockGroups.filter((group) => {
-      const matchesSearch =
-        !normalizedSearch ||
-        group.name.toLocaleLowerCase().includes(normalizedSearch) ||
-        group.teacher.toLocaleLowerCase().includes(normalizedSearch);
-      const matchesAge = ageCategory === allValue || group.ageCategory === ageCategory;
-      const matchesDirection = direction === allValue || group.direction === direction;
-      const matchesStatus = status === allValue || group.status === status;
-      return matchesSearch && matchesAge && matchesDirection && matchesStatus;
-    });
-  }, [ageCategory, direction, search, status]);
+    return mockGroups
+      .filter((group) => {
+        const matchesSearch =
+          !normalizedSearch ||
+          group.name.toLocaleLowerCase().includes(normalizedSearch) ||
+          group.teacher.toLocaleLowerCase().includes(normalizedSearch);
+        const matchesAge = ageCategory === allValue || group.ageCategory === ageCategory;
+        const matchesDirection = direction === allValue || group.direction === direction;
+        const matchesStatus = status === allValue || group.status === status;
+        return matchesSearch && matchesAge && matchesDirection && matchesStatus;
+      })
+      .sort((first, second) => {
+        if (sort === "name") return first.name.localeCompare(second.name, "ru");
+        if (sort === "children") return second.childrenCount - first.childrenCount;
+        const firstDate = first.createdAt.split(".").reverse().join("");
+        const secondDate = second.createdAt.split(".").reverse().join("");
+        return sort === "oldest" ? firstDate.localeCompare(secondDate) : secondDate.localeCompare(firstDate);
+      });
+  }, [ageCategory, direction, search, sort, status]);
 
   const activeGroup = useMemo(() => {
     const base = mockGroups.find((group) => group.id === activeGroupId);
@@ -126,7 +143,23 @@ export function GroupsPage({ onNavigate }: GroupsPageProps) {
 
   return (
     <AppShell activeNavigation="groups" onNavigate={onNavigate}>
-      {activeGroup ? (
+      {comparisonOpen ? (
+        <GroupsComparisonView
+          groups={filteredGroups}
+          nicuLabels={nicuLabels}
+          search={search}
+          ageCategory={ageCategory}
+          direction={direction}
+          status={status}
+          sort={sort}
+          onSearchChange={setSearch}
+          onAgeCategoryChange={setAgeCategory}
+          onDirectionChange={setDirection}
+          onStatusChange={setStatus}
+          onSortChange={setSort}
+          onBack={() => setComparisonOpen(false)}
+        />
+      ) : activeGroup ? (
         <GroupDetailView
           group={activeGroup}
           nicuLabels={nicuLabels}
@@ -140,6 +173,7 @@ export function GroupsPage({ onNavigate }: GroupsPageProps) {
             setSelectedChild(null);
           }}
           onPlaceholder={openPlaceholder}
+          onComparisonOpen={() => setComparisonOpen(true)}
           onAddChildOpen={() => setActiveModal("addChild")}
           onChatOpen={() => setActiveModal("chat")}
           onTicketOpen={(ticketId) => {
@@ -148,6 +182,8 @@ export function GroupsPage({ onNavigate }: GroupsPageProps) {
           }}
           onAttendanceOpen={() => setActiveModal("attendance")}
           onHistoryOpen={() => setActiveModal("history")}
+          onEditOpen={() => setEditOpen(true)}
+          onTicketsListOpen={() => setActiveModal("ticketsList")}
         />
       ) : (
         <GroupsListView
@@ -155,6 +191,7 @@ export function GroupsPage({ onNavigate }: GroupsPageProps) {
           ageCategory={ageCategory}
           direction={direction}
           status={status}
+          sort={sort}
           page={page}
           groups={filteredGroups}
           summary={summary}
@@ -163,9 +200,11 @@ export function GroupsPage({ onNavigate }: GroupsPageProps) {
           onAgeCategoryChange={setAgeCategory}
           onDirectionChange={setDirection}
           onStatusChange={setStatus}
+          onSortChange={setSort}
           onPageChange={setPage}
           onGroupOpen={(group) => setActiveGroupId(group.id)}
           onCreateOpen={() => setCreateOpen(true)}
+          onComparisonOpen={() => setComparisonOpen(true)}
         />
       )}
 
@@ -178,6 +217,17 @@ export function GroupsPage({ onNavigate }: GroupsPageProps) {
         footer={<CreateGroupFooter onClose={() => setCreateOpen(false)} />}
       >
         <CreateGroupModalContent />
+      </Modal>
+
+      <Modal
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        title="Редактировать группу"
+        description={activeGroup ? `Группа «${activeGroup.name}»` : "Изменение данных группы"}
+        size="lg"
+        footer={<EditGroupFooter onClose={() => setEditOpen(false)} />}
+      >
+        <CreateGroupModalContent mode="edit" />
       </Modal>
 
       <Modal
@@ -204,11 +254,32 @@ export function GroupsPage({ onNavigate }: GroupsPageProps) {
       <Modal
         open={activeModal === "ticket"}
         onOpenChange={(open) => !open && setActiveModal(null)}
-        title={`Обращение ${activeTicketId}`}
+        title={
+          <span className="inline-flex flex-wrap items-center gap-3">
+            Обращение {activeTicketId}
+            <StatusBadge status="warning">В обработке</StatusBadge>
+          </span>
+        }
         size="xl"
         footer={<TicketFooter onClose={() => setActiveModal(null)} />}
       >
         <TicketModalContent ticketId={activeTicketId} />
+      </Modal>
+
+      <Modal
+        open={activeModal === "ticketsList"}
+        onOpenChange={(open) => !open && setActiveModal(null)}
+        title="Все обращения родителей"
+        description={activeGroup ? `Группа «${activeGroup.name}»` : undefined}
+        size="lg"
+      >
+        <TicketsListModalContent
+          group={activeGroup ?? createGroupDetail(mockGroups[0])}
+          onTicketOpen={(ticketId) => {
+            setActiveTicketId(ticketId);
+            setActiveModal("ticket");
+          }}
+        />
       </Modal>
 
       <Modal
@@ -254,6 +325,7 @@ interface GroupsListViewProps {
   ageCategory: string;
   direction: string;
   status: string;
+  sort: string;
   page: number;
   groups: GroupRecord[];
   summary: ReturnType<typeof createSummary>;
@@ -262,9 +334,11 @@ interface GroupsListViewProps {
   onAgeCategoryChange: (value: string) => void;
   onDirectionChange: (value: string) => void;
   onStatusChange: (value: string) => void;
+  onSortChange: (value: string) => void;
   onPageChange: (page: number) => void;
   onGroupOpen: (group: GroupRecord) => void;
   onCreateOpen: () => void;
+  onComparisonOpen: () => void;
 }
 
 function GroupsListView({
@@ -272,6 +346,7 @@ function GroupsListView({
   ageCategory,
   direction,
   status,
+  sort,
   page,
   groups,
   summary,
@@ -280,9 +355,11 @@ function GroupsListView({
   onAgeCategoryChange,
   onDirectionChange,
   onStatusChange,
+  onSortChange,
   onPageChange,
   onGroupOpen,
   onCreateOpen,
+  onComparisonOpen,
 }: GroupsListViewProps) {
   const { t } = useI18n();
 
@@ -308,6 +385,7 @@ function GroupsListView({
             items={developmentStats}
             labels={nicuLabels}
             areaLabel={(area) => t(`groups.developmentAreas.${area}`)}
+            onClick={onComparisonOpen}
           />
         </div>
 
@@ -315,33 +393,46 @@ function GroupsListView({
           <CardContent className="space-y-4">
             <FilterBar
               left={
-                <Input
-                  className="w-full sm:w-[360px]"
-                  aria-label={t("groups.filters.search")}
-                  placeholder={t("groups.filters.search")}
-                  value={search}
-                  onChange={(event) => onSearchChange(event.target.value)}
-                  leftIcon={<Search className="h-4 w-4" />}
-                />
+                <>
+                  <SearchField
+                    className="w-full sm:w-[360px]"
+                    aria-label={t("groups.filters.search")}
+                    placeholder={t("groups.filters.search")}
+                    value={search}
+                    onChange={(event) => onSearchChange(event.target.value)}
+                  />
+                  <Select
+                    className="w-full sm:w-56"
+                    aria-label={t("groups.filters.sort")}
+                    value={sort}
+                    onChange={(event) => onSortChange(event.target.value)}
+                    options={[
+                      { label: t("groups.filters.newestFirst"), value: "newest" },
+                      { label: t("groups.filters.oldestFirst"), value: "oldest" },
+                      { label: t("groups.filters.byName"), value: "name" },
+                      { label: t("groups.filters.byChildren"), value: "children" },
+                    ]}
+                  />
+                </>
               }
               right={
                 <>
                   <Select
-                    className="w-48"
+                    className="w-full"
                     label={t("groups.filters.ageCategory")}
                     value={ageCategory}
                     onChange={(event) => onAgeCategoryChange(event.target.value)}
                     options={createOptions(mockGroups.map((group) => group.ageCategory), t("groups.filters.all"))}
                   />
                   <Select
-                    className="w-56"
+                    className="w-full"
                     label={t("groups.filters.direction")}
                     value={direction}
                     onChange={(event) => onDirectionChange(event.target.value)}
                     options={createOptions(mockGroups.map((group) => group.direction), t("groups.filters.all"))}
                   />
                   <Select
-                    className="w-44"
+                    className="w-full"
                     label={t("groups.filters.status")}
                     value={status}
                     onChange={(event) => onStatusChange(event.target.value)}
@@ -417,6 +508,167 @@ function GroupsListView({
   );
 }
 
+function GroupsComparisonView({
+  groups,
+  nicuLabels,
+  search,
+  ageCategory,
+  direction,
+  status,
+  sort,
+  onSearchChange,
+  onAgeCategoryChange,
+  onDirectionChange,
+  onStatusChange,
+  onSortChange,
+  onBack,
+}: {
+  groups: GroupRecord[];
+  nicuLabels: { n: string; i: string; ch: string; u: string };
+  search: string;
+  ageCategory: string;
+  direction: string;
+  status: string;
+  sort: string;
+  onSearchChange: (value: string) => void;
+  onAgeCategoryChange: (value: string) => void;
+  onDirectionChange: (value: string) => void;
+  onStatusChange: (value: string) => void;
+  onSortChange: (value: string) => void;
+  onBack: () => void;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <PageContainer>
+      <PageHeader
+        title={t("groups.comparison.title")}
+        description={t("groups.comparison.description")}
+        breadcrumbs={[
+          { label: t("navigation.home"), href: "#" },
+          { label: t("navigation.groups"), href: "#" },
+          { label: t("groups.comparison.title") },
+        ]}
+        actions={
+          <Button variant="outline" leftIcon={<ChevronLeft className="h-4 w-4" />} onClick={onBack}>
+            {t("groups.actions.backToGroups")}
+          </Button>
+        }
+      />
+
+      <div className="space-y-6">
+        <Card>
+          <CardContent>
+            <FilterBar
+              left={
+                <>
+                  <SearchField
+                    className="w-full sm:w-[360px]"
+                    aria-label={t("groups.filters.search")}
+                    placeholder={t("groups.filters.search")}
+                    value={search}
+                    onChange={(event) => onSearchChange(event.target.value)}
+                  />
+                  <Select
+                    className="w-full sm:w-56"
+                    aria-label={t("groups.filters.sort")}
+                    value={sort}
+                    onChange={(event) => onSortChange(event.target.value)}
+                    options={[
+                      { label: t("groups.filters.newestFirst"), value: "newest" },
+                      { label: t("groups.filters.oldestFirst"), value: "oldest" },
+                      { label: t("groups.filters.byName"), value: "name" },
+                      { label: t("groups.filters.byChildren"), value: "children" },
+                    ]}
+                  />
+                </>
+              }
+              right={
+                <>
+                  <Select
+                    className="w-full"
+                    label={t("groups.filters.ageCategory")}
+                    value={ageCategory}
+                    onChange={(event) => onAgeCategoryChange(event.target.value)}
+                    options={createOptions(mockGroups.map((group) => group.ageCategory), t("groups.filters.all"))}
+                  />
+                  <Select
+                    className="w-full"
+                    label={t("groups.filters.direction")}
+                    value={direction}
+                    onChange={(event) => onDirectionChange(event.target.value)}
+                    options={createOptions(mockGroups.map((group) => group.direction), t("groups.filters.all"))}
+                  />
+                  <Select
+                    className="w-full"
+                    label={t("groups.filters.status")}
+                    value={status}
+                    onChange={(event) => onStatusChange(event.target.value)}
+                    options={[
+                      { label: t("groups.filters.all"), value: allValue },
+                      { label: t("groups.status.active"), value: "active" },
+                      { label: t("groups.status.pending"), value: "pending" },
+                      { label: t("groups.status.closed"), value: "closed" },
+                    ]}
+                  />
+                </>
+              }
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("groups.comparison.tableTitle")}</CardTitle>
+            <CardDescription>{t("groups.comparison.tableDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <TableContainer>
+              <Table className="min-w-[1280px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("groups.table.id")}</TableHead>
+                    <TableHead>{t("groups.table.name")}</TableHead>
+                    <TableHead>{t("groups.table.ageCategory")}</TableHead>
+                    <TableHead>{t("groups.table.childrenCount")}</TableHead>
+                    {groupDevelopmentAreas.map((area) => (
+                      <TableHead key={area}>{t(`groups.developmentAreas.${area}`)}</TableHead>
+                    ))}
+                    <TableHead>{t("groups.comparison.risk")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {groups.map((group) => {
+                    const risk = groupDevelopmentAreas.reduce((sum, area) => sum + group.development[area].n, 0);
+                    return (
+                      <TableRow key={group.id}>
+                        <TableCell className="font-medium">{group.id}</TableCell>
+                        <TableCell className="font-semibold text-text-primary">{group.name}</TableCell>
+                        <TableCell>{group.ageCategory}</TableCell>
+                        <TableCell>{group.childrenCount}</TableCell>
+                        {groupDevelopmentAreas.map((area) => (
+                          <TableCell key={area}>
+                            <StackedNicuBar value={group.development[area]} labels={nicuLabels} compact className="min-w-[180px]" />
+                          </TableCell>
+                        ))}
+                        <TableCell>
+                          <StatusBadge status={risk > 45 ? "danger" : risk > 35 ? "warning" : "success"}>
+                            {risk > 45 ? t("groups.comparison.highRisk") : risk > 35 ? t("groups.comparison.mediumRisk") : t("groups.comparison.lowRisk")}
+                          </StatusBadge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+      </div>
+    </PageContainer>
+  );
+}
+
 interface GroupDetailViewProps {
   group: GroupDetail;
   nicuLabels: { n: string; i: string; ch: string; u: string };
@@ -426,11 +678,14 @@ interface GroupDetailViewProps {
   onChildSelect: (rowNumber: number) => void;
   onBack: () => void;
   onPlaceholder: (title: string) => void;
+  onComparisonOpen: () => void;
   onAddChildOpen: () => void;
   onChatOpen: () => void;
   onTicketOpen: (ticketId: string) => void;
   onAttendanceOpen: () => void;
   onHistoryOpen: () => void;
+  onEditOpen: () => void;
+  onTicketsListOpen: () => void;
 }
 
 function GroupDetailView({
@@ -442,11 +697,14 @@ function GroupDetailView({
   onChildSelect,
   onBack,
   onPlaceholder,
+  onComparisonOpen,
   onAddChildOpen,
   onChatOpen,
   onTicketOpen,
   onAttendanceOpen,
   onHistoryOpen,
+  onEditOpen,
+  onTicketsListOpen,
 }: GroupDetailViewProps) {
   const { t } = useI18n();
   const filteredChildren = group.children.filter((child) => {
@@ -471,6 +729,9 @@ function GroupDetailView({
             </Button>
             <Button variant="outline" leftIcon={<History className="h-4 w-4" />} onClick={onHistoryOpen}>
               {t("groups.history.title")}
+            </Button>
+            <Button variant="outline" leftIcon={<PencilLine className="h-4 w-4" />} onClick={onEditOpen}>
+              Редактировать
             </Button>
           </>
         }
@@ -511,17 +772,6 @@ function GroupDetailView({
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
-          <NicuDistributionCard
-            title={t("groups.stats.averageDevelopment")}
-            description={t("groups.stats.currentObservationCycleShort")}
-            items={group.detailDevelopmentStats}
-            labels={nicuLabels}
-            areaLabel={(area) => t(`groups.developmentAreas.${area}`)}
-          />
-          <GroupChatCard group={group} onOpen={onChatOpen} />
-        </div>
-
         <div className="grid gap-4 xl:grid-cols-4">
           <AttendanceCard group={group} onOpen={onAttendanceOpen} />
           <LearningCard group={group} onOpen={() => onPlaceholder(t("groups.learning.open"))} />
@@ -529,7 +779,18 @@ function GroupDetailView({
           <FinanceCard group={group} onOpen={() => onPlaceholder(t("groups.finance.open"))} />
         </div>
 
-        <TicketsCard group={group} onTicketOpen={onTicketOpen} />
+        <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr_1.75fr]">
+          <NicuDistributionCard
+            title={t("groups.stats.averageDevelopment")}
+            description={t("groups.stats.currentObservationCycleShort")}
+            items={group.detailDevelopmentStats}
+            labels={nicuLabels}
+            areaLabel={(area) => t(`groups.developmentAreas.${area}`)}
+            onClick={onComparisonOpen}
+          />
+          <GroupChatCard group={group} onOpen={onChatOpen} />
+          <TicketsCard group={group} onTicketOpen={onTicketOpen} onOpenAllTickets={onTicketsListOpen} compact />
+        </div>
 
         <ChildrenTable
           group={group}
@@ -548,11 +809,33 @@ function GroupDetailView({
   );
 }
 
-function CreateGroupModalContent() {
+function CreateGroupModalContent({ mode = "create" }: { mode?: "create" | "edit" }) {
+  const [teacher, setTeacher] = useState("saidova");
+  const teacherOptions = [
+    {
+      label: "Саидова Нилуфар Анваровна",
+      value: "saidova",
+      description: "+998 90 555 11 22",
+      avatar: <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-danger-bg text-xs font-semibold text-danger-text">СН</span>,
+    },
+    {
+      label: "Ибрагимова Мадина Джамшидовна",
+      value: "ibragimova",
+      description: "+998 90 555 11 23",
+      avatar: <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">ИМ</span>,
+    },
+    {
+      label: "Петрова Мария Ивановна",
+      value: "petrova",
+      description: "+998 91 234 56 78",
+      avatar: <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-purple-bg text-xs font-semibold text-purple-text">ПМ</span>,
+    },
+  ];
+
   return (
     <div className="space-y-7">
       <div className="grid gap-6 lg:grid-cols-2">
-        <Input label="Название группы *" placeholder="Введите название группы" />
+        <Input label="Название группы *" placeholder="Введите название группы" defaultValue={mode === "edit" ? "Жасмин" : undefined} />
         <Select
           label="Статус группы *"
           defaultValue="active"
@@ -565,7 +848,7 @@ function CreateGroupModalContent() {
         <div className="space-y-2">
           <Select
             label="Возрастная категория группы *"
-            defaultValue=""
+            defaultValue={mode === "edit" ? "3-4" : ""}
             placeholder="Выберите возрастную категорию"
             options={[
               { label: "1,5-3 года", value: "1.5-3" },
@@ -580,7 +863,7 @@ function CreateGroupModalContent() {
         </div>
         <Select
           label="Направленность группы *"
-          defaultValue=""
+          defaultValue={mode === "edit" ? "general" : ""}
           placeholder="Выберите направленность группы"
           options={[
             { label: "Общеразвивающая", value: "general" },
@@ -590,16 +873,15 @@ function CreateGroupModalContent() {
           ]}
         />
         <div className="space-y-2">
-          <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-text-secondary">Воспитатель группы *</span>
-            <span className="focus-ring flex h-10 items-center gap-3 rounded-input border border-border bg-surface px-3 text-sm text-text-primary shadow-card">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-danger-bg text-xs font-semibold text-danger-text">СН</span>
-              <span className="min-w-0 flex-1 truncate">Саидова Нилуфар Анваровна</span>
-              <ChevronRight className="h-4 w-4 rotate-90 text-text-muted" />
-              <Search className="h-4 w-4 text-primary" />
-            </span>
-          </label>
-          <p className="text-xs text-text-muted">Поиск сотрудника из модуля «Сотрудники».</p>
+          <SearchableSelect
+            label="Воспитатель группы *"
+            value={teacher}
+            onChange={setTeacher}
+            placeholder="Выберите воспитателя"
+            searchPlaceholder="Поиск сотрудника"
+            options={teacherOptions}
+            helperText="Поиск сотрудника из модуля «Сотрудники»."
+          />
         </div>
         <Input label="Номер телефона воспитателя группы" value="+998 90 555 11 22" disabled helperText="Заполняется автоматически после выбора воспитателя. Недоступно для редактирования." />
       </div>
@@ -628,6 +910,17 @@ function CreateGroupFooter({ onClose }: { onClose: () => void }) {
   );
 }
 
+function EditGroupFooter({ onClose }: { onClose: () => void }) {
+  return (
+    <>
+      <Button variant="outline" onClick={onClose}>
+        Отмена
+      </Button>
+      <Button onClick={onClose}>Сохранить</Button>
+    </>
+  );
+}
+
 const childCandidates = [
   { id: "00021", name: "Тлеуберди Амина", age: "4 года 2 мес.", group: "Группа «Ромашка»", moved: true, checked: true },
   { id: "00022", name: "Ибраева Дамир", age: "3 года 8 мес.", group: "Не распределен", moved: false, checked: false },
@@ -649,7 +942,7 @@ function AddChildModalContent() {
         Можно добавить детей из другой группы — система отметит это как перемещение.
       </div>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-        <Input className="lg:flex-1" placeholder="Поиск по ФИО ребенка или порядковому номеру" leftIcon={<Search className="h-4 w-4" />} />
+        <SearchField className="lg:flex-1" placeholder="Поиск по ФИО ребенка или порядковому номеру" />
         <Select className="lg:w-48" defaultValue="" placeholder="Возраст" options={[{ label: "3-4 года", value: "3-4" }, { label: "4-5 лет", value: "4-5" }]} />
         <div className="flex h-10 items-center justify-center rounded-input border border-border bg-page px-5 text-sm font-semibold text-text-primary">
           Выбрано: <span className="ml-1 text-primary">3</span>
@@ -724,13 +1017,10 @@ function GroupChatModalContent({ groupName }: { groupName: string }) {
           <h3 className="text-xl font-semibold text-text-primary">{groupName}</h3>
           <span className="text-sm font-medium text-text-muted">18 участников</span>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" leftIcon={<Search className="h-4 w-4" />}>Поиск</Button>
-          <Button variant="outline" leftIcon={<Users className="h-4 w-4" />}>Участники</Button>
-        </div>
+        <SearchField className="w-full lg:w-72" placeholder="Поиск по сообщениям или участникам" />
       </div>
-      <div className="grid overflow-hidden rounded-input border border-border lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="border-b border-border bg-page/30 p-4 lg:border-b-0 lg:border-r">
+      <div className="grid overflow-hidden rounded-card border border-border bg-surface shadow-card lg:grid-cols-[300px_minmax(0,1fr)]">
+        <aside className="border-b border-border bg-page/40 p-4 lg:border-b-0 lg:border-r">
           <div className="mb-4 flex items-center justify-between">
             <div className="font-semibold text-text-primary">Участники</div>
             <div className="text-sm text-text-muted">18</div>
@@ -746,9 +1036,8 @@ function GroupChatModalContent({ groupName }: { groupName: string }) {
               </div>
             ))}
           </div>
-          <Button variant="outline" className="mt-4 w-full">Показать всех участников</Button>
         </aside>
-        <section className="flex min-h-[520px] flex-col">
+        <section className="flex min-h-[540px] flex-col bg-gradient-to-b from-page/40 to-surface">
           <div className="flex-1 space-y-4 overflow-auto p-5">
             <ChatBubble initials="АИ" author="Анна Иванова" meta="20.05.2024, 09:18" text="Спасибо за напоминание! А во сколько нужно быть в саду?" />
             <ChatBubble right initials="МИ" author="Мария Иванова" role="Воспитатель" meta="20.05.2024, 09:20" text="Пожалуйста! Сбор в группе до 8:45, выезд в 9:00." />
@@ -757,13 +1046,14 @@ function GroupChatModalContent({ groupName }: { groupName: string }) {
             <ChatBubble initials="РА" author="Руслан Алиев" role="папа Тимура Алиева" meta="20.05.2024, 11:17" text="Спасибо, Руслан! Полезный документ, прикреплю к чату." />
             <ChatBubble right initials="МИ" author="Мария Иванова" role="Воспитатель" meta="20.05.2024, 11:22" text="Можно узнать, будет ли после экскурсии обед в саду?" />
           </div>
-          <div className="border-t border-border p-4">
-            <div className="flex gap-3">
-              <Button variant="outline" leftIcon={<Paperclip className="h-4 w-4" />}>Файл</Button>
-              <Input className="flex-1" placeholder="Написать сообщение в общий чат..." rightIcon={<Smile className="h-4 w-4" />} />
-              <Button leftIcon={<Send className="h-4 w-4" />}>Отправить</Button>
-            </div>
-            <div className="mt-3 text-center text-xs text-text-muted">Сообщение увидят все участники группы</div>
+          <div className="border-t border-border bg-surface p-4">
+            <MessageComposer
+              className="[&_textarea]:min-h-10"
+              placeholder="Написать сообщение в общий чат..."
+              attachmentLabel="Файл"
+              sendLabel="Отправить"
+              helperText={<span className="block w-full text-center">Сообщение увидят все участники группы</span>}
+            />
           </div>
         </section>
       </div>
@@ -774,9 +1064,6 @@ function GroupChatModalContent({ groupName }: { groupName: string }) {
 function TicketModalContent({ ticketId }: { ticketId: string }) {
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <StatusBadge status="warning">В обработке</StatusBadge>
-      </div>
       <div className="grid rounded-input border border-border lg:grid-cols-2">
         <div className="space-y-5 border-b border-border p-5 lg:border-b-0 lg:border-r">
           <TicketInfo icon={<FileText />} label="Номер тикета" value={ticketId} />
@@ -784,12 +1071,12 @@ function TicketModalContent({ ticketId }: { ticketId: string }) {
           <TicketInfo icon={<User />} label="Родитель / ФИО" value="Анна Иванова" link />
           <TicketInfo icon={<UserRound />} label="Привязка к ребенку / ФИО" value="Иванов Тимур" link />
           <TicketInfo icon={<Info />} label="Тема" value="Вопрос по питанию" />
-          <div className="grid gap-3 text-sm sm:grid-cols-[120px_minmax(0,1fr)]">
-            <div className="flex items-center gap-2 text-text-muted">
+          <div className="flex items-start justify-between gap-4 text-sm">
+            <div className="flex min-w-0 items-center gap-2 text-text-muted">
               <MessageSquare className="h-4 w-4" />
               Описание
             </div>
-            <p className="leading-5 text-text-primary">Здравствуйте! У Тимура есть пищевая аллергия на молочные продукты. Хотела уточнить, чем его кормят в детском саду и можно ли заменить молочные блюда.</p>
+            <p className="max-w-[58%] text-right leading-5 text-text-primary">Здравствуйте! У Тимура есть пищевая аллергия на молочные продукты. Хотела уточнить, чем его кормят в детском саду и можно ли заменить молочные блюда.</p>
           </div>
         </div>
         <div className="space-y-5 p-5">
@@ -822,9 +1109,15 @@ function TicketModalContent({ ticketId }: { ticketId: string }) {
           <ChatBubble initials="АИ" author="Анна Иванова" role="Родитель" meta="20.05.2024, 10:38" text="Аллергия на молоко и творог. Сыр можно в небольшом количестве. Спасибо!" />
           <ChatBubble right initials="МК" author="Мария Кузнецова" role="Сотрудник" meta="20.05.2024, 10:45" text="Принято, спасибо за уточнение. Мы скорректируем рацион и исключим молоко и творог." />
         </div>
-        <div className="relative">
-          <Textarea className="min-h-12 resize-none pr-12" placeholder="Написать сообщение..." />
-          <Smile className="absolute bottom-4 right-4 h-4 w-4 text-text-muted" />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div className="relative flex-1">
+            <Textarea className="min-h-12 resize-none pr-12" placeholder="Написать сообщение..." />
+            <Smile className="absolute bottom-4 right-4 h-4 w-4 text-text-muted" />
+          </div>
+          <Button variant="outline" leftIcon={<Paperclip className="h-4 w-4" />}>
+            Файл
+          </Button>
+          <Button leftIcon={<Send className="h-4 w-4" />}>Отправить</Button>
         </div>
       </div>
     </div>
@@ -833,12 +1126,14 @@ function TicketModalContent({ ticketId }: { ticketId: string }) {
 
 function TicketFooter({ onClose }: { onClose: () => void }) {
   return (
-    <>
-      <Button variant="outline" leftIcon={<Paperclip className="h-4 w-4" />}>Отправить вложение</Button>
-      <Button leftIcon={<Send className="h-4 w-4" />}>Отправить</Button>
-      <Button variant="danger" leftIcon={<Lock className="h-4 w-4" />}>Закрыть тикет</Button>
-      <Button variant="outline" onClick={onClose}>Отмена</Button>
-    </>
+    <ModalFooter
+      right={
+        <>
+          <Button variant="danger" leftIcon={<Lock className="h-4 w-4" />}>Закрыть тикет</Button>
+          <Button variant="outline" onClick={onClose}>Отмена</Button>
+        </>
+      }
+    />
   );
 }
 
@@ -848,40 +1143,99 @@ const attendanceDays = [
   { day: "22", weekDay: "Ср" },
   { day: "23", weekDay: "Чт" },
   { day: "24", weekDay: "Пт" },
-  { day: "27", weekDay: "Пн" },
-  { day: "28", weekDay: "Вт" },
-  { day: "29", weekDay: "Ср" },
-  { day: "30", weekDay: "Чт" },
-  { day: "31", weekDay: "Пт" },
+  { day: "25", weekDay: "Сб" },
 ] as const;
 
 const attendanceRows = [
-  { id: 1, initials: "АТ", name: "Абдуллаев Тимур Ильхомович", marks: ["+", "+", "+", "+", "-", "+", "+", "+", "+", "+"], status: "Отсутствует", reason: "Болеет" },
-  { id: 2, initials: "ИМ", name: "Иванова Мария Сергеевна", marks: ["+", "+", "+", "+", "+", "+", "+", "+", "+", "+"], status: "Присутствует", reason: "" },
-  { id: 3, initials: "КА", name: "Каримов Амир Бахтиёрович", marks: ["-", "-", "-", "-", "-", "-", "-", "-", "-", "-"], status: "", reason: "По заявлению" },
-  { id: 4, initials: "МС", name: "Мирзоева София Дилшодовна", marks: ["+", "+", "+", "+", "+", "+", "-", "+", "+", "+"], status: "", reason: "Семейные обстоятельства" },
-  { id: 5, initials: "НД", name: "Назаров Даврон Фарходович", marks: ["+", "+", "+", "+", "+", "+", "+", "+", "+", "-"], status: "", reason: "Болеет" },
-  { id: 6, initials: "ЮА", name: "Юсупова Амина Рустамовна", marks: ["+", "+", "+", "-", "+", "+", "+", "+", "+", "+"], status: "", reason: "" },
+  { id: 1, initials: "АТ", name: "Абдуллаев Тимур Ильхомович", marks: ["+", "+", "", "+", "-", ""], comments: ["", "", "", "", "Болеет", ""] },
+  { id: 2, initials: "ИМ", name: "Иванова Мария Сергеевна", marks: ["+", "+", "+", "", "+", "+"], comments: ["", "", "", "", "", ""] },
+  { id: 3, initials: "КА", name: "Каримов Амир Бахтиёрович", marks: ["-", "", "-", "-", "", "-"], comments: ["По заявлению", "", "", "", "", ""] },
+  { id: 4, initials: "МС", name: "Мирзоева София Дилшодовна", marks: ["+", "+", "+", "+", "", "+"], comments: ["", "", "", "", "Семейные обстоятельства", ""] },
+  { id: 5, initials: "НД", name: "Назаров Даврон Фарходович", marks: ["+", "", "+", "+", "+", "-"], comments: ["", "", "", "", "", "Болеет"] },
+  { id: 6, initials: "ЮА", name: "Юсупова Амина Рустамовна", marks: ["+", "+", "", "-", "+", "+"], comments: ["", "", "", "Опоздание утром", "", ""] },
 ] as const;
 
 function AttendanceModalContent({ groupName }: { groupName: string }) {
+  const monthNames = ["Март", "Апрель", "Май", "Июнь", "Июль", "Август"];
+  const [monthIndex, setMonthIndex] = useState(2);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [activeCell, setActiveCell] = useState<{ rowId: number; dayIndex: number } | null>(null);
+  const [marks, setMarks] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    attendanceRows.forEach((row) => row.marks.forEach((mark, index) => (initial[`${row.id}-${index}`] = mark)));
+    return initial;
+  });
+  const [comments, setComments] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    attendanceRows.forEach((row) => row.comments.forEach((comment, index) => (initial[`${row.id}-${index}`] = comment)));
+    return initial;
+  });
+
+  const updateComment = (key: string, value: string) => {
+    const words = value.trim().split(/\s+/).filter(Boolean);
+    const limitedValue = words.length > 50 ? words.slice(0, 50).join(" ") : value;
+    setComments((current) => ({ ...current, [key]: limitedValue }));
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="outline" size="icon" aria-label="Предыдущий месяц">
+          <Button variant="outline" size="icon" aria-label="Предыдущий месяц" onClick={() => setMonthIndex((current) => Math.max(0, current - 1))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button variant="outline" leftIcon={<CalendarDays className="h-4 w-4" />} rightIcon={<ChevronRight className="h-4 w-4 rotate-90" />}>
-            Май 2024
+            {monthNames[monthIndex]} 2026
           </Button>
-          <Button variant="outline" size="icon" aria-label="Следующий месяц">
+          <Button variant="outline" size="icon" aria-label="Следующий месяц" onClick={() => setMonthIndex((current) => Math.min(monthNames.length - 1, current + 1))}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        <Button variant="outline" leftIcon={<CalendarDays className="h-4 w-4" />} rightIcon={<ChevronRight className="h-4 w-4 rotate-90" />}>
-          Выбрать дату
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <StatusBadge status="info">Сегодня: 10.05.2026</StatusBadge>
+          <div className="relative">
+            <Button
+              variant="outline"
+              leftIcon={<CalendarDays className="h-4 w-4" />}
+              rightIcon={<ChevronRight className="h-4 w-4 rotate-90" />}
+              onClick={() => setDatePickerOpen((open) => !open)}
+            >
+              Выбрать дату
+            </Button>
+            {datePickerOpen ? (
+              <div className="absolute right-0 z-20 mt-2 w-80 rounded-card border border-border bg-surface p-4 shadow-modal">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="font-semibold text-text-primary">{monthNames[monthIndex]} 2026</span>
+                  <span className="text-xs text-text-muted">Учебные недели</span>
+                </div>
+                <div className="grid grid-cols-7 gap-1 text-center text-xs text-text-muted">
+                  {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((day) => (
+                    <span key={day}>{day}</span>
+                  ))}
+                </div>
+                <div className="mt-2 grid grid-cols-7 gap-1">
+                  {Array.from({ length: 35 }, (_, index) => {
+                    const date = index - 2;
+                    const active = date === 20 || date === 10;
+                    return (
+                      <button
+                        key={index}
+                        className={cn(
+                          "h-8 rounded-input text-sm font-medium text-text-secondary hover:bg-primary-soft hover:text-primary",
+                          date < 1 || date > 31 ? "opacity-0" : "",
+                          active && "bg-primary text-text-inverse hover:bg-primary",
+                        )}
+                        onClick={() => setDatePickerOpen(false)}
+                      >
+                        {date > 0 && date <= 31 ? date : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -891,7 +1245,7 @@ function AttendanceModalContent({ groupName }: { groupName: string }) {
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-        <Input className="lg:flex-1" placeholder="Поиск по ФИО ребенка" leftIcon={<Search className="h-4 w-4" />} />
+        <SearchField className="lg:flex-1" placeholder="Поиск по ФИО ребенка" />
         <Select
           className="lg:w-64"
           label=""
@@ -902,22 +1256,23 @@ function AttendanceModalContent({ groupName }: { groupName: string }) {
             { label: "Отсутствуют", value: "absent" },
           ]}
         />
-        <Button variant="outline" leftIcon={<CalendarDays className="h-4 w-4" />}>Календарь месяца</Button>
       </div>
 
       <TableContainer>
-        <Table className="min-w-[1320px]">
+        <Table className="min-w-[1680px]">
           <TableHeader>
             <TableRow>
               <TableHead className="w-14">№</TableHead>
-              <TableHead>ФИО ребенка</TableHead>
+              <TableHead className="min-w-[260px]">ФИО ребенка</TableHead>
               {attendanceDays.map((day) => (
-                <TableHead key={`${day.day}-${day.weekDay}`} className="text-center">
-                  <div className="font-semibold text-text-primary">{day.day}</div>
-                  <div className="text-xs font-medium text-text-muted">{day.weekDay}</div>
-                </TableHead>
+                <Fragment key={`${day.day}-${day.weekDay}`}>
+                  <TableHead key={`${day.day}-${day.weekDay}`} className="w-20 text-center">
+                    <div className="font-semibold text-text-primary">{day.day}</div>
+                    <div className="text-xs font-medium text-text-muted">{day.weekDay}</div>
+                  </TableHead>
+                  <TableHead key={`${day.day}-${day.weekDay}-comment`} className="min-w-[210px]">Комментарий</TableHead>
+                </Fragment>
               ))}
-              <TableHead>Комментарий / причина</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -930,17 +1285,56 @@ function AttendanceModalContent({ groupName }: { groupName: string }) {
                     <div className="max-w-[220px] whitespace-normal font-semibold text-text-primary">{row.name}</div>
                   </div>
                 </TableCell>
-                {row.marks.map((mark, index) => (
-                  <TableCell key={`${row.id}-${index}`} className="text-center">
-                    <span className={cn("text-xl font-semibold", mark === "+" ? "text-success-text" : "text-danger-text")}>{mark}</span>
-                  </TableCell>
-                ))}
-                <TableCell>
-                  <div className="flex min-w-[180px] items-center gap-3">
-                    {row.status ? <StatusBadge status={row.status === "Присутствует" ? "success" : "danger"}>{row.status}</StatusBadge> : null}
-                    <span className="text-sm text-text-secondary">{row.reason}</span>
-                  </div>
-                </TableCell>
+                {attendanceDays.map((day, index) => {
+                  const key = `${row.id}-${index}`;
+                  const mark = marks[key];
+                  return (
+                    <Fragment key={`${row.id}-${day.day}`}>
+                      <TableCell key={key} className="relative text-center">
+                        <button
+                          type="button"
+                          className={cn(
+                            "h-9 w-9 rounded-input text-xl font-semibold hover:bg-primary-soft",
+                            mark === "+" && "text-success-text",
+                            mark === "-" && "text-danger-text",
+                            !mark && "border border-dashed border-border text-text-muted",
+                          )}
+                          onClick={() => setActiveCell({ rowId: row.id, dayIndex: index })}
+                        >
+                          {mark || ""}
+                        </button>
+                        {activeCell?.rowId === row.id && activeCell.dayIndex === index ? (
+                          <div className="absolute left-1/2 top-12 z-20 w-40 -translate-x-1/2 rounded-input border border-border bg-surface p-1 shadow-modal">
+                            {[
+                              ["+", "Присутствует"],
+                              ["-", "Отсутствует"],
+                            ].map(([value, label]) => (
+                              <button
+                                key={value}
+                                type="button"
+                                className="block w-full rounded-[8px] px-3 py-2 text-left text-sm hover:bg-page"
+                                onClick={() => {
+                                  setMarks((current) => ({ ...current, [key]: value }));
+                                  setActiveCell(null);
+                                }}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </TableCell>
+                      <TableCell key={`${key}-comment`}>
+                        <Textarea
+                          className="min-h-9 w-[200px] resize-none text-xs transition-all focus:w-[420px]"
+                          value={comments[key] ?? ""}
+                          placeholder="Причина"
+                          onChange={(event) => updateComment(key, event.target.value)}
+                        />
+                      </TableCell>
+                    </Fragment>
+                  );
+                })}
               </TableRow>
             ))}
           </TableBody>
@@ -1087,7 +1481,7 @@ function GroupHistoryModalContent() {
     <div className="space-y-5">
       <div className="rounded-card border border-border bg-surface p-5 shadow-card">
         <div className="grid gap-4 xl:grid-cols-4">
-          <Input label="Поиск" placeholder="Поиск по комментарию, ребенку или сотруднику" leftIcon={<Search className="h-4 w-4" />} />
+          <SearchField label="Поиск" placeholder="Поиск по комментарию, ребенку или сотруднику" />
           <Select label="Тип события" defaultValue="all" options={[{ label: "Все типы", value: "all" }]} />
           <Select label="Кто внес изменение" defaultValue="all" options={[{ label: "Все сотрудники", value: "all" }]} />
           <Button variant="outline" className="mt-auto justify-start" leftIcon={<CalendarDays className="h-4 w-4" />}>
@@ -1218,12 +1612,12 @@ function HistorySummaryItem({
 
 function TicketInfo({ icon, label, value, link }: { icon: ReactNode; label: string; value: string; link?: boolean }) {
   return (
-    <div className="grid gap-3 text-sm sm:grid-cols-[120px_minmax(0,1fr)]">
-      <div className="flex items-center gap-2 text-text-muted">
+    <div className="flex items-start justify-between gap-4 text-sm">
+      <div className="flex min-w-0 items-center gap-2 text-text-muted">
         <span className="[&>svg]:h-4 [&>svg]:w-4">{icon}</span>
         {label}
       </div>
-      <div className={cn("font-medium", link ? "text-primary" : "text-text-primary")}>{value}</div>
+      <div className={cn("max-w-[58%] text-right font-medium", link ? "text-primary" : "text-text-primary")}>{value}</div>
     </div>
   );
 }
@@ -1248,16 +1642,30 @@ function ChatBubble({
   return (
     <div className={cn("flex items-start gap-3", right && "justify-end")}>
       {!right ? <InitialsAvatar initials={initials} /> : null}
-      <div className={cn("max-w-[620px] rounded-input px-4 py-3 text-sm shadow-card", right ? "bg-purple-bg/40" : "bg-surface")}>
-        <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-text-muted">
-          <span className="font-semibold text-text-primary">{author}</span>
-          {role ? <span className="text-primary">{role}</span> : null}
+      <div
+        className={cn(
+          "max-w-[620px] rounded-input border px-4 py-3 text-sm shadow-card",
+          right ? "border-primary bg-primary text-text-inverse" : "border-border bg-surface text-text-primary",
+        )}
+      >
+        <div className={cn("mb-1 flex flex-wrap items-center gap-2 text-xs", right ? "text-white/75" : "text-text-muted")}>
+          <span className={cn("font-semibold", right ? "text-text-inverse" : "text-text-primary")}>{author}</span>
+          {role ? <span className={right ? "text-white/85" : "text-primary"}>{role}</span> : null}
           <span className="ml-auto">{meta}</span>
         </div>
-        <div className={cn("leading-5 text-text-primary", attachment && "flex items-center gap-3 rounded-input border border-border bg-surface p-3 font-semibold")}>
-          {attachment ? <FileText className="h-7 w-7 text-danger-text" /> : null}
+        <div
+          className={cn(
+            "leading-5",
+            attachment &&
+              cn(
+                "flex items-center gap-3 rounded-input border p-3 font-semibold",
+                right ? "border-white/25 bg-white/10" : "border-border bg-surface",
+              ),
+          )}
+        >
+          {attachment ? <FileText className={cn("h-7 w-7", right ? "text-text-inverse" : "text-danger-text")} /> : null}
           {text}
-          {attachment ? <Download className="ml-auto h-5 w-5 text-primary" /> : null}
+          {attachment ? <Download className={cn("ml-auto h-5 w-5", right ? "text-text-inverse" : "text-primary")} /> : null}
         </div>
       </div>
       {right ? <InitialsAvatar initials={initials} /> : null}
@@ -1265,9 +1673,14 @@ function ChatBubble({
   );
 }
 
-function InitialsAvatar({ initials }: { initials: string }) {
+function InitialsAvatar({ initials, size = "md" }: { initials: string; size?: "sm" | "md" }) {
   return (
-    <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-soft text-sm font-semibold text-primary">
+    <span
+      className={cn(
+        "relative flex shrink-0 items-center justify-center rounded-full bg-primary-soft font-semibold text-primary",
+        size === "sm" ? "h-9 w-9 text-xs ring-2 ring-surface" : "h-10 w-10 text-sm",
+      )}
+    >
       {initials}
       <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-surface bg-success-text" />
     </span>
@@ -1277,8 +1690,8 @@ function InitialsAvatar({ initials }: { initials: string }) {
 function AttendanceCard({ group, onOpen }: { group: GroupDetail; onOpen: () => void }) {
   const { t } = useI18n();
   return (
-    <DashboardCard title={t("groups.attendance.title")} icon={<Clock3 className="h-5 w-5" />} actionLabel={t("groups.attendance.open")} onAction={onOpen}>
-      <div className="grid grid-cols-3 gap-3">
+    <DashboardCard title={t("groups.attendance.title")} icon={<Clock3 className="h-5 w-5" />} onAction={onOpen}>
+      <div className="grid grid-cols-3 gap-2">
         <Metric label={t("groups.attendance.totalChildren")} value={group.attendance.totalChildren} />
         <Metric label={t("groups.attendance.presentToday")} value={group.attendance.presentToday} />
         <Metric label={t("groups.attendance.absentToday")} value={group.attendance.absentToday} tone="warning" />
@@ -1290,7 +1703,7 @@ function AttendanceCard({ group, onOpen }: { group: GroupDetail; onOpen: () => v
 function LearningCard({ group, onOpen }: { group: GroupDetail; onOpen: () => void }) {
   const { t } = useI18n();
   return (
-    <DashboardCard title={t("groups.learning.title")} icon={<BookOpen className="h-5 w-5" />} actionLabel={t("groups.learning.open")} onAction={onOpen}>
+    <DashboardCard title={t("groups.learning.title")} icon={<BookOpen className="h-5 w-5" />} onAction={onOpen}>
       <div className="space-y-3 text-sm">
         <InfoLine label={t("groups.learning.monthTheme")} value={group.learning.monthTheme} />
         <InfoLine label={t("groups.learning.weekTheme")} value={group.learning.weekTheme} />
@@ -1310,7 +1723,7 @@ function LearningCard({ group, onOpen }: { group: GroupDetail; onOpen: () => voi
 function BilimtoyGamesCard({ group, onOpen }: { group: GroupDetail; onOpen: () => void }) {
   const { t } = useI18n();
   return (
-    <DashboardCard title={t("groups.games.title")} icon={<Gamepad2 className="h-5 w-5" />} actionLabel={t("groups.games.open")} onAction={onOpen}>
+    <DashboardCard title={t("groups.games.title")} icon={<Gamepad2 className="h-5 w-5" />} onAction={onOpen}>
       <div className="space-y-3">
         <InfoLine label={t("groups.games.currentMonth")} value={t("groups.games.currentMonthValue")} />
         <div className="flex flex-wrap gap-2">
@@ -1328,7 +1741,7 @@ function BilimtoyGamesCard({ group, onOpen }: { group: GroupDetail; onOpen: () =
 function FinanceCard({ group, onOpen }: { group: GroupDetail; onOpen: () => void }) {
   const { t } = useI18n();
   return (
-    <DashboardCard title={t("groups.finance.title")} icon={<WalletCards className="h-5 w-5" />} actionLabel={t("groups.finance.open")} onAction={onOpen}>
+    <DashboardCard title={t("groups.finance.title")} icon={<WalletCards className="h-5 w-5" />} onAction={onOpen}>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <Metric label={t("groups.finance.income")} value={group.finance.income} tone="success" />
@@ -1353,59 +1766,164 @@ function FinanceCard({ group, onOpen }: { group: GroupDetail; onOpen: () => void
 function GroupChatCard({ group, onOpen }: { group: GroupDetail; onOpen: () => void }) {
   const { t } = useI18n();
   return (
-    <DashboardCard title={t("groups.chat.title")} icon={<MessageSquare className="h-5 w-5" />} actionLabel={t("groups.chat.openChat")} onAction={onOpen}>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Metric label={t("groups.chat.newMessages")} value={group.chat.newMessages} tone="info" />
-        <Metric label={t("groups.chat.participants")} value={group.chat.participants} />
-        <Metric label={t("groups.chat.lastActivity")} value={group.chat.lastActivity} />
+    <DashboardCard title={t("groups.chat.title")} icon={<MessageSquare className="h-5 w-5" />} onAction={onOpen}>
+      <div className="space-y-4">
+        <p className="text-sm leading-5 text-text-secondary">Общий чат группы «{group.name}»</p>
+        <div className="flex items-center justify-between gap-4">
+          <ChatAvatarStack total={group.chat.participants} />
+          <span className="inline-flex h-10 min-w-10 items-center justify-center rounded-[10px] bg-primary px-3 text-base font-semibold text-text-inverse shadow-card">
+            {group.chat.newMessages}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-3 text-sm text-text-muted">
+          <span className="font-medium">Последнее сообщение</span>
+          <span>{group.chat.lastActivity}</span>
+        </div>
+        <div className="rounded-input bg-page px-4 py-3 text-xs font-medium leading-5 text-text-secondary">
+          Напоминаем, что завтра у детей тематическое занятие по животным. Просьба принести картинки или игрушки.
+        </div>
       </div>
     </DashboardCard>
   );
 }
 
-function TicketsCard({ group, onTicketOpen }: { group: GroupDetail; onTicketOpen: (ticketId: string) => void }) {
+function ChatAvatarStack({ total }: { total: number }) {
+  const visible = participants.slice(0, 3);
+  const extra = Math.max(total - visible.length, 0);
+
+  return (
+    <div className="flex items-center">
+      {visible.map(([initials, name]) => (
+        <span key={name} className="-ml-2 first:ml-0">
+          <InitialsAvatar initials={initials} size="sm" />
+        </span>
+      ))}
+      {extra ? (
+        <span className="-ml-2 inline-flex h-9 min-w-9 items-center justify-center rounded-full border-2 border-surface bg-page px-2 text-xs font-semibold text-text-secondary">
+          +{extra}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function TicketsCard({
+  group,
+  onTicketOpen,
+  onOpenAllTickets,
+  compact = false,
+}: {
+  group: GroupDetail;
+  onTicketOpen: (ticketId: string) => void;
+  onOpenAllTickets?: () => void;
+  compact?: boolean;
+}) {
   const { t } = useI18n();
+  const tickets = createParentTickets(group);
+  const visibleTickets = compact ? tickets.slice(0, 4) : tickets;
+  const showAllButton = tickets.length >= 5 && onOpenAllTickets;
+
   return (
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle>{t("groups.tickets.title")}</CardTitle>
-          <CardDescription>{t("groups.tickets.description")}</CardDescription>
+          {!compact ? <CardDescription>{t("groups.tickets.description")}</CardDescription> : null}
         </div>
-        <Button variant="ghost" onClick={() => onTicketOpen(t("groups.tickets.allTickets"))}>
-          {t("groups.tickets.allTickets")}
-        </Button>
+        {showAllButton ? (
+          <Button variant="ghost" onClick={onOpenAllTickets}>
+            {t("groups.tickets.allTickets")}
+          </Button>
+        ) : null}
       </CardHeader>
       <CardContent>
-        <TableContainer>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("groups.tickets.ticketId")}</TableHead>
-                <TableHead>{t("groups.tickets.subject")}</TableHead>
-                <TableHead>{t("groups.tickets.parent")}</TableHead>
-                <TableHead>{t("groups.tickets.sentAt")}</TableHead>
-                <TableHead>{t("groups.tickets.status")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {group.tickets.map((ticket) => (
-                <TableRow key={ticket.id} className="cursor-pointer" onClick={() => onTicketOpen(ticket.id)}>
-                  <TableCell className="font-medium">{ticket.id}</TableCell>
-                  <TableCell>{ticket.subject}</TableCell>
-                  <TableCell>{ticket.parentName}</TableCell>
-                  <TableCell>{ticket.sentAt}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={ticketStatusVariant(ticket.status)}>{t(`groups.ticketStatus.${ticket.status}`)}</StatusBadge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        {compact ? (
+          <div className="space-y-2">
+            {visibleTickets.map((ticket) => (
+              <button
+                key={ticket.id}
+                type="button"
+                className="grid w-full grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-3 rounded-input border border-border px-3 py-2 text-left transition-colors hover:bg-page"
+                onClick={() => onTicketOpen(ticket.id)}
+              >
+                <span className="text-xs font-semibold text-text-primary">{ticket.id}</span>
+                <span className="min-w-0">
+                  <span className="block max-w-[170px] whitespace-normal break-words text-xs font-medium leading-4 text-text-primary">
+                    {ticket.subject}
+                  </span>
+                  <span className="mt-1 block truncate text-[11px] text-text-muted">
+                    {ticket.parentName} · {ticket.sentAt}
+                  </span>
+                </span>
+                <StatusBadge status={ticketStatusVariant(ticket.status)} className="min-h-6 px-2 py-0.5 text-[11px]">
+                  {t(`groups.ticketStatus.${ticket.status}`)}
+                </StatusBadge>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <TicketsTable tickets={visibleTickets} onTicketOpen={onTicketOpen} />
+        )}
       </CardContent>
     </Card>
   );
+}
+
+function TicketsListModalContent({ group, onTicketOpen }: { group: GroupDetail; onTicketOpen: (ticketId: string) => void }) {
+  return <TicketsTable tickets={createParentTickets(group)} onTicketOpen={onTicketOpen} />;
+}
+
+function TicketsTable({ tickets, onTicketOpen }: { tickets: ParentTicket[]; onTicketOpen: (ticketId: string) => void }) {
+  const { t } = useI18n();
+
+  return (
+    <TableContainer>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t("groups.tickets.ticketId")}</TableHead>
+            <TableHead>{t("groups.tickets.subject")}</TableHead>
+            <TableHead>{t("groups.tickets.parent")}</TableHead>
+            <TableHead>{t("groups.tickets.sentAt")}</TableHead>
+            <TableHead>{t("groups.tickets.status")}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {tickets.map((ticket) => (
+            <TableRow key={ticket.id} className="cursor-pointer" onClick={() => onTicketOpen(ticket.id)}>
+              <TableCell className="font-medium">{ticket.id}</TableCell>
+              <TableCell className="max-w-[220px] whitespace-normal break-words leading-5">{ticket.subject}</TableCell>
+              <TableCell>{ticket.parentName}</TableCell>
+              <TableCell>{ticket.sentAt}</TableCell>
+              <TableCell>
+                <StatusBadge status={ticketStatusVariant(ticket.status)}>{t(`groups.ticketStatus.${ticket.status}`)}</StatusBadge>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+function createParentTickets(group: GroupDetail): ParentTicket[] {
+  return [
+    ...group.tickets,
+    {
+      id: "#1258",
+      subject: "Вопрос по форме",
+      parentName: "Алиева Р.",
+      sentAt: "16.05.2026 08:40",
+      status: "new",
+    },
+    {
+      id: "#1259",
+      subject: "Просьба перенести встречу",
+      parentName: "Иванова О.",
+      sentAt: "16.05.2026 11:15",
+      status: "inProgress",
+    },
+  ];
 }
 
 function ChildrenTable({
@@ -1445,12 +1963,11 @@ function ChildrenTable({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Input
+        <SearchField
           className="w-full sm:w-[360px]"
           aria-label={t("groups.children.search")}
           placeholder={t("groups.children.search")}
           value={search}
-          leftIcon={<Search className="h-4 w-4" />}
           onChange={(event) => onSearchChange(event.target.value)}
         />
         {children.length ? (
@@ -1540,11 +2057,10 @@ function ComparisonDevelopmentMap({
       <CardContent className="space-y-4">
         <FilterBar
           left={
-            <Input
+            <SearchField
               className="w-full sm:w-[360px]"
               aria-label={t("groups.children.comparisonSearch")}
               placeholder={t("groups.children.comparisonSearch")}
-              leftIcon={<Search className="h-4 w-4" />}
             />
           }
           right={
@@ -1657,18 +2173,27 @@ function createComparisonRows(group: GroupDetail) {
 function DashboardCard({
   title,
   icon,
-  actionLabel,
   onAction,
   children,
 }: {
   title: string;
   icon: ReactNode;
-  actionLabel: string;
   onAction: () => void;
   children: ReactNode;
 }) {
   return (
-    <Card className="h-full">
+    <Card
+      className="h-full cursor-pointer transition-shadow hover:shadow-modal"
+      role="button"
+      tabIndex={0}
+      onClick={onAction}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onAction();
+        }
+      }}
+    >
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-soft text-primary">{icon}</span>
@@ -1676,13 +2201,7 @@ function DashboardCard({
         </div>
         <ChevronRight className="h-4 w-4 text-text-muted" />
       </CardHeader>
-      <CardContent className="space-y-4">
-        {children}
-        <Button variant="ghost" className="justify-start px-0" onClick={onAction}>
-          {actionLabel}
-          <ChevronRight className="ml-1 h-4 w-4" />
-        </Button>
-      </CardContent>
+      <CardContent className="space-y-4">{children}</CardContent>
     </Card>
   );
 }
@@ -1697,8 +2216,8 @@ function Metric({ label, value, tone = "neutral" }: { label: string; value: stri
   }[tone];
 
   return (
-    <div className="rounded-input border border-border p-3">
-      <div className="text-xs text-text-muted">{label}</div>
+    <div className="min-w-0 rounded-input border border-border p-3">
+      <div className="text-xs leading-4 text-text-muted break-words">{label}</div>
       <div className={cn("mt-1 text-lg font-semibold", toneClass)}>{value}</div>
     </div>
   );

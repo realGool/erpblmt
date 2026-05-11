@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   AlertCircle,
@@ -10,10 +10,8 @@ import {
   Edit3,
   Flag,
   MessageCircle,
-  MoreHorizontal,
   Paperclip,
   Plus,
-  Search,
   Send,
   SlidersHorizontal,
   Trash2,
@@ -30,6 +28,8 @@ import {
   CardContent,
   Input,
   Modal,
+  SearchField,
+  SearchableSelect,
   Select,
   StatusBadge,
   Textarea,
@@ -63,11 +63,18 @@ const columnSurface: Record<KanbanColumnId, string> = {
 };
 
 const typeDotClass: Record<KanbanTaskType, string> = {
-  education: "bg-purple-text",
+  education: "bg-primary",
   organization: "bg-info-text",
   parents: "bg-warning-text",
   observation: "bg-success-text",
 };
+
+const typeDonutSegments = [
+  { type: "education", value: 42, color: "var(--color-primary)" },
+  { type: "organization", value: 28, color: "var(--color-info-text)" },
+  { type: "parents", value: 18, color: "var(--color-warning-text)" },
+  { type: "observation", value: 12, color: "var(--color-success-text)" },
+] satisfies Array<{ type: KanbanTaskType; value: number; color: string }>;
 
 const priorityFlagClass: Record<KanbanPriority, string> = {
   low: "text-success-text",
@@ -84,6 +91,7 @@ export function KanbanPage({ onNavigate }: KanbanPageProps) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [myTasksOnly, setMyTasksOnly] = useState(false);
 
   const filteredTasks = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
@@ -96,9 +104,10 @@ export function KanbanPage({ onNavigate }: KanbanPageProps) {
         task.child.toLocaleLowerCase().includes(query);
       const matchesType = typeFilter === "all" || task.type === typeFilter;
       const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
-      return matchesSearch && matchesType && matchesPriority;
+      const matchesOwner = !myTasksOnly || task.assignee === "Айжан Т.";
+      return matchesSearch && matchesType && matchesPriority && matchesOwner;
     });
-  }, [priorityFilter, search, tasks, typeFilter]);
+  }, [myTasksOnly, priorityFilter, search, tasks, typeFilter]);
 
   const moveTask = (status: KanbanColumnId) => {
     if (!draggedTaskId) return;
@@ -124,19 +133,27 @@ export function KanbanPage({ onNavigate }: KanbanPageProps) {
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div className="grid gap-4 md:grid-cols-3">
               <KanbanMetric icon={<CheckCircle2 className="h-6 w-6" />} title={t("kanban.stats.done")} value="128" helper={t("kanban.stats.last30Days")} tone="success" />
-              <KanbanMetric icon={<Clock3 className="h-6 w-6" />} title={t("kanban.stats.averageTime")} value="2 д 6 ч" helper={t("kanban.stats.average")} tone="info" />
+              <KanbanMetric icon={<Clock3 className="h-6 w-6" />} title={t("kanban.stats.averageTime")} value="54 ч" helper={t("kanban.stats.average")} tone="info" />
               <KanbanMetric icon={<AlertCircle className="h-6 w-6" />} title={t("kanban.stats.overdue")} value="23" helper={t("kanban.stats.urgentToday")} tone="danger" />
             </div>
             <Card>
               <CardContent>
                 <div className="text-sm font-semibold text-text-primary">{t("kanban.stats.byType")}</div>
                 <div className="mt-4 flex items-center gap-4">
-                  <div className="h-24 w-24 rounded-full" style={{ background: "conic-gradient(var(--color-primary) 0 42%, var(--color-success-text) 42% 70%, var(--color-warning-text) 70% 88%, var(--color-purple-text) 88% 100%)" }} />
+                  <div
+                    className="grid h-24 w-24 shrink-0 place-items-center rounded-full"
+                    style={{ background: "conic-gradient(var(--color-primary) 0 42%, var(--color-info-text) 42% 70%, var(--color-warning-text) 70% 88%, var(--color-success-text) 88% 100%)" }}
+                  >
+                    <div className="grid h-16 w-16 place-items-center rounded-full bg-surface text-xs font-semibold text-text-secondary">
+                      100%
+                    </div>
+                  </div>
                   <div className="space-y-2 text-xs font-medium text-text-secondary">
-                    {(["education", "organization", "parents", "observation"] as KanbanTaskType[]).map((type, index) => (
-                      <div key={type} className="flex items-center justify-between gap-4">
-                        <span>{t(`kanban.types.${type}`)}</span>
-                        <span className="font-semibold text-text-primary">{[42, 28, 18, 12][index]}%</span>
+                    {typeDonutSegments.map((segment) => (
+                      <div key={segment.type} className="flex items-center justify-between gap-4">
+                        <span className={cn("h-2.5 w-2.5 rounded-full", typeDotClass[segment.type])} />
+                        <span className="min-w-0 flex-1">{t(`kanban.types.${segment.type}`)}</span>
+                        <span className="font-semibold text-text-primary">{segment.value}%</span>
                       </div>
                     ))}
                   </div>
@@ -148,11 +165,10 @@ export function KanbanPage({ onNavigate }: KanbanPageProps) {
           <Card>
             <CardContent className="space-y-4">
               <div className="grid gap-3 xl:grid-cols-[minmax(280px,1fr)_repeat(5,minmax(150px,auto))]">
-                <Input
+                <SearchField
                   placeholder={t("kanban.filters.search")}
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  leftIcon={<Search className="h-4 w-4" />}
                 />
                 <Select
                   value="all"
@@ -169,8 +185,8 @@ export function KanbanPage({ onNavigate }: KanbanPageProps) {
                 <Button variant="outline" leftIcon={<SlidersHorizontal className="h-4 w-4" />}>{t("kanban.actions.reset")}</Button>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" leftIcon={<Users className="h-4 w-4" />}>{t("kanban.filters.allEmployees")}</Button>
-                <Button variant="outline" leftIcon={<UserRound className="h-4 w-4" />}>{t("kanban.filters.myTasks")}</Button>
+                <Button variant={!myTasksOnly ? "secondary" : "outline"} leftIcon={<Users className="h-4 w-4" />} onClick={() => setMyTasksOnly(false)}>{t("kanban.filters.allEmployees")}</Button>
+                <Button variant={myTasksOnly ? "secondary" : "outline"} leftIcon={<UserRound className="h-4 w-4" />} onClick={() => setMyTasksOnly(true)}>{t("kanban.filters.myTasks")}</Button>
                 <span className="flex items-center text-sm text-text-muted">{t("kanban.page.adminHint")}</span>
               </div>
             </CardContent>
@@ -249,7 +265,6 @@ function KanbanColumn({
           <h3 className="font-semibold text-text-primary">{t(`kanban.columns.${id}`)}</h3>
           <Badge variant={id === "done" ? "success" : id === "review" ? "purple" : id === "inProgress" ? "warning" : "info"}>{total}</Badge>
         </div>
-        <MoreHorizontal className="h-4 w-4 text-text-muted" />
       </div>
 
       <div className="space-y-3">
@@ -319,35 +334,93 @@ function TaskMeta({ icon, text }: { icon: ReactNode; text: string }) {
   );
 }
 
-function CreateTaskModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+function CreateTaskModal({
+  open,
+  onClose,
+  task,
+  mode = "create",
+}: {
+  open: boolean;
+  onClose: () => void;
+  task?: KanbanTask;
+  mode?: "create" | "edit";
+}) {
   const { t } = useI18n();
-  const [taskType, setTaskType] = useState<KanbanTaskType>("education");
-  const [priority, setPriority] = useState<KanbanPriority>("high");
+  const [taskType, setTaskType] = useState<KanbanTaskType>(task?.type ?? "education");
+  const [priority, setPriority] = useState<KanbanPriority>(task?.priority ?? "high");
+  const [assignee, setAssignee] = useState(task?.assignee ?? "Айжан Т.");
+  const [group, setGroup] = useState(task?.group ?? "Жасмин");
+  const [child, setChild] = useState(task?.child ?? "Алихан Р.");
+
+  useEffect(() => {
+    if (!open) return;
+    setTaskType(task?.type ?? "education");
+    setPriority(task?.priority ?? "high");
+    setAssignee(task?.assignee ?? "Айжан Т.");
+    setGroup(task?.group ?? "Жасмин");
+    setChild(task?.child ?? "Алихан Р.");
+  }, [open, task]);
 
   return (
     <Modal
       open={open}
       onOpenChange={(nextOpen) => !nextOpen && onClose()}
-      title={t("kanban.create.title")}
+      title={mode === "edit" ? t("common.actions.edit") : t("kanban.create.title")}
       size="md"
       footer={
         <>
           <Button variant="outline" onClick={onClose}>{t("common.actions.cancel")}</Button>
-          <Button onClick={onClose}>{t("kanban.actions.createTask")}</Button>
+          <Button onClick={onClose}>{mode === "edit" ? t("common.actions.save") : t("kanban.actions.createTask")}</Button>
         </>
       }
     >
       <div className="space-y-5">
-        <Input label={t("kanban.fields.title")} placeholder={t("kanban.create.titlePlaceholder")} />
+        <Input label={t("kanban.fields.title")} placeholder={t("kanban.create.titlePlaceholder")} defaultValue={task?.title} />
         <div>
-          <Textarea label={t("common.labels.description")} placeholder={t("kanban.create.descriptionPlaceholder")} className="min-h-32" maxLength={1000} />
+          <Textarea label={t("common.labels.description")} placeholder={t("kanban.create.descriptionPlaceholder")} className="min-h-32" maxLength={1000} defaultValue={task?.description} />
           <div className="mt-1 text-right text-xs text-text-muted">0 / 1000</div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <TaskTypeSelect value={taskType} onChange={setTaskType} />
-          <Select label={t("kanban.fields.assignee")} defaultValue="aizhan" options={[{ label: "Айжан Тулегенова", value: "aizhan" }, { label: "Гульнар К.", value: "gulnar" }]} />
-          <Select label={t("kanban.fields.group")} defaultValue="jasmine" options={[{ label: "Жасмин", value: "jasmine" }, { label: "Солнышко", value: "sun" }]} />
-          <Select label={t("kanban.fields.child")} defaultValue="alihan" options={[{ label: "Алихан Р.", value: "alihan" }, { label: "Не привязан", value: "none" }]} />
+          <SearchableSelect
+            label={t("kanban.fields.assignee")}
+            value={assignee}
+            placeholder={t("kanban.fields.assignee")}
+            searchPlaceholder={t("kanban.fields.assignee")}
+            onChange={setAssignee}
+            options={[
+              { label: "Айжан Т.", value: "Айжан Т." },
+              { label: "Гульнар К.", value: "Гульнар К." },
+              { label: "Марина Л.", value: "Марина Л." },
+              { label: "Светлана Р.", value: "Светлана Р." },
+            ]}
+          />
+          <SearchableSelect
+            label={t("kanban.fields.group")}
+            value={group}
+            placeholder={t("kanban.fields.group")}
+            searchPlaceholder={t("kanban.fields.group")}
+            onChange={setGroup}
+            options={[
+              { label: "Жасмин", value: "Жасмин" },
+              { label: "Солнышко", value: "Солнышко" },
+              { label: "Звёздочки", value: "Звёздочки" },
+              { label: "Радуга", value: "Радуга" },
+            ]}
+          />
+          <SearchableSelect
+            label={t("kanban.fields.child")}
+            value={child}
+            placeholder={t("kanban.fields.child")}
+            searchPlaceholder={t("kanban.fields.child")}
+            onChange={setChild}
+            options={[
+              { label: "Алихан Р.", value: "Алихан Р." },
+              { label: "Амир С.", value: "Амир С." },
+              { label: "София М.", value: "София М." },
+              { label: "Не привязан", value: "Не привязан" },
+            ]}
+          />
           <Input label={t("kanban.fields.deadline")} type="date" />
           <PrioritySelect value={priority} onChange={setPriority} />
         </div>
@@ -358,25 +431,30 @@ function CreateTaskModal({ open, onClose }: { open: boolean; onClose: () => void
 
 export function ReadTaskModal({ task, onClose }: { task: KanbanTask | null; onClose: () => void }) {
   const { t } = useI18n();
+  const [editOpen, setEditOpen] = useState(false);
 
   return (
-    <Modal
-      open={Boolean(task)}
-      onOpenChange={(open) => !open && onClose()}
-      title={task?.title ?? t("kanban.read.title")}
-      description={t("kanban.read.subtitle")}
-      size="lg"
-    >
-      {task ? (
-        <div className="space-y-4">
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" size="icon" aria-label={t("common.actions.edit")}>
-              <Edit3 className="h-4 w-4" />
-            </Button>
-            <Button variant="danger" size="icon" aria-label={t("common.actions.delete")}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+    <>
+      <Modal
+        open={Boolean(task)}
+        onOpenChange={(open) => !open && onClose()}
+        title={t("kanban.read.title")}
+        description={t("kanban.read.subtitle")}
+        size="lg"
+      >
+        {task ? (
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <h3 className="text-xl font-semibold leading-tight text-text-primary">{task.title}</h3>
+              <div className="flex shrink-0 gap-2">
+                <Button variant="outline" size="icon" aria-label={t("common.actions.edit")} onClick={() => setEditOpen(true)}>
+                  <Edit3 className="h-4 w-4" />
+                </Button>
+                <Button variant="danger" size="icon" aria-label={t("common.actions.delete")} onClick={onClose}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
 
           <div className="grid gap-4 rounded-card border border-border bg-page/35 p-4 md:grid-cols-3">
             <ReadChip icon={<BookOpen className="h-5 w-5" />} label={t("kanban.fields.type")} value={t(`kanban.types.${task.type}`)} variant={typeVariant[task.type]} />
@@ -463,9 +541,11 @@ export function ReadTaskModal({ task, onClose }: { task: KanbanTask | null; onCl
               </div>
             </CardContent>
           </Card>
-        </div>
-      ) : null}
-    </Modal>
+          </div>
+        ) : null}
+      </Modal>
+      {task ? <CreateTaskModal open={editOpen} onClose={() => setEditOpen(false)} task={task} mode="edit" /> : null}
+    </>
   );
 }
 

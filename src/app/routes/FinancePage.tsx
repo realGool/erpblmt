@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { AlertCircle, Banknote, CalendarDays, CheckCircle2, CreditCard, Edit3, Info, Lock, Plus, ReceiptText, Search, Tag, WalletCards } from "lucide-react";
+import { AlertCircle, Banknote, CalendarDays, CheckCircle2, CreditCard, Edit3, Info, Lock, Plus, ReceiptText, Tag, WalletCards } from "lucide-react";
 import { AppShell, PageContainer, PageHeader } from "../../components/layout";
 import type { SidebarNavigationKey } from "../../components/layout/Sidebar";
-import { Badge, Button, Card, CardContent, CrudSelect, EmptyState, Input, Modal, Pagination, Select, StatusBadge, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Textarea } from "../../components/ui";
+import { Badge, Button, Card, CardContent, CrudSelect, EmptyState, Input, Modal, Pagination, SearchField, Select, StatusBadge, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger, Textarea } from "../../components/ui";
 import { financeBranches, payments, tariffs, type Payment, type PaymentStatus, type Tariff, type TariffStatus, type TariffType } from "../../data/mockFinance";
 import { useI18n } from "../../i18n";
 import { cn } from "../../lib/cn";
@@ -97,12 +97,11 @@ function TariffsView() {
               options={financeBranches}
             />
             <div>
-              <Input
+              <SearchField
                 label={t("finance.tariffs.filters.searchLabel")}
                 placeholder={t("finance.tariffs.filters.search")}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                leftIcon={<Search className="h-4 w-4" />}
               />
             </div>
           </CardContent>
@@ -282,12 +281,11 @@ function PaymentsView() {
 
         <Card>
           <CardContent className="grid gap-4 xl:grid-cols-[minmax(260px,1fr)_220px_220px]">
-            <Input
+            <SearchField
               label={t("finance.payments.filters.searchLabel")}
               placeholder={t("finance.payments.filters.search")}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              leftIcon={<Search className="h-4 w-4" />}
             />
             <Select
               label={t("finance.payments.filters.branch")}
@@ -503,12 +501,11 @@ function DebtsView() {
 
         <Card>
           <CardContent className="grid gap-4 lg:grid-cols-[minmax(260px,1fr)_260px]">
-            <Input
+            <SearchField
               label={t("finance.debts.filters.searchLabel")}
               placeholder={t("finance.debts.filters.search")}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              leftIcon={<Search className="h-4 w-4" />}
             />
             <Select
               label={t("finance.debts.filters.branch")}

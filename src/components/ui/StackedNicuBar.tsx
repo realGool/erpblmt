@@ -18,6 +18,7 @@ export interface StackedNicuBarProps {
   value: NicuValue;
   labels: NicuLabels;
   compact?: boolean;
+  thin?: boolean;
   className?: string;
 }
 
@@ -28,10 +29,10 @@ const segments = [
   { key: "u", className: "bg-info-bg text-info-text" },
 ] as const;
 
-export function StackedNicuBar({ value, labels, compact = false, className }: StackedNicuBarProps) {
+export function StackedNicuBar({ value, labels, compact = false, thin = false, className }: StackedNicuBarProps) {
   return (
-    <div className={cn("min-w-[132px] space-y-1.5", className)}>
-      <div className="flex h-2 overflow-hidden rounded-full bg-page">
+    <div className={cn("min-w-[132px] space-y-1.5", thin && "min-w-0 space-y-1", className)}>
+      <div className={cn("flex h-2 overflow-hidden rounded-full bg-page", thin && "h-1.5")}>
         {segments.map((segment) => (
           <div
             key={segment.key}
@@ -46,6 +47,7 @@ export function StackedNicuBar({ value, labels, compact = false, className }: St
             key={segment.key}
             className={cn(
               "inline-flex items-center justify-center rounded-[6px] px-1.5 py-1 text-[11px] font-semibold leading-none",
+              thin && "px-1 py-0.5 text-[10px]",
               segment.className,
             )}
           >

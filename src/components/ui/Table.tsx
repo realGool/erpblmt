@@ -2,7 +2,7 @@ import type { HTMLAttributes, TableHTMLAttributes, TdHTMLAttributes, ThHTMLAttri
 import { cn } from "../../lib/cn";
 
 export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElement>) {
-  return <table className={cn("w-full border-collapse text-left text-sm", className)} {...props} />;
+  return <table className={cn("w-full min-w-max border-collapse text-left text-sm", className)} {...props} />;
 }
 
 export function TableContainer({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
@@ -22,9 +22,9 @@ export function TableRow({ className, ...props }: HTMLAttributes<HTMLTableRowEle
 }
 
 export function TableHead({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
-  return <th className={cn("h-12 border-b border-border px-4 py-3 align-middle", className)} {...props} />;
+  return <th className={cn("h-12 border-b border-border px-4 py-3 align-middle whitespace-nowrap", className)} {...props} />;
 }
 
 export function TableCell({ className, ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn("h-14 px-4 py-3 align-middle text-text-primary", className)} {...props} />;
+  return <td className={cn("h-14 px-4 py-3 align-middle text-text-primary whitespace-normal break-words", className)} {...props} />;
 }

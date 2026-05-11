@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Banknote, Building2, ChevronRight, FileText, Users, UserRoundCheck, WalletCards } from "lucide-react";
+import { Banknote, Building2, ChevronRight, FileText, ListFilter, Users, UserRoundCheck, WalletCards } from "lucide-react";
 import { AppShell, PageContainer, PageHeader } from "../../components/layout";
 import type { SidebarNavigationKey } from "../../components/layout/Sidebar";
 import {
@@ -12,9 +12,9 @@ import {
   DetailInfoGrid,
   displayDictionaryValue,
   EmptyState,
-  FilterBar,
   MockMapCard,
   Pagination,
+  SearchField,
   Select,
   StatsCard,
   StatusBadge,
@@ -46,11 +46,36 @@ export function OrganizationPage({ onNavigate }: OrganizationPageProps) {
   const [selectedBranch, setSelectedBranch] = useState<BranchRecord | null>(null);
   const [modalState, setModalState] = useState<ModalState>(null);
   const [page, setPage] = useState(1);
+  const [branchSearch, setBranchSearch] = useState("");
+  const [branchSort, setBranchSort] = useState("newest");
+  const [branchType, setBranchType] = useState("all");
+  const [branchFiltersOpen, setBranchFiltersOpen] = useState(false);
 
   const currentRecord = selectedBranch ?? mainOrganization;
   const isBranchView = Boolean(selectedBranch);
 
   const detailItems = useMemo(() => createDetailItems(currentRecord, t), [currentRecord, t]);
+
+  const visibleBranches = useMemo(() => {
+    const query = branchSearch.trim().toLowerCase();
+
+    return branches
+      .filter((branch) => {
+        const matchesSearch =
+          !query ||
+          [branch.shortName, branch.legalName, branch.cityDistrict, branch.street, branch.taxId, branch.registrationNumber]
+            .join(" ")
+            .toLowerCase()
+            .includes(query);
+        const matchesType = branchType === "all" || branch.organizationType === branchType;
+        return matchesSearch && matchesType;
+      })
+      .sort((first, second) => {
+        const firstNumber = Number(first.rowNumber);
+        const secondNumber = Number(second.rowNumber);
+        return branchSort === "oldest" ? firstNumber - secondNumber : secondNumber - firstNumber;
+      });
+  }, [branchSearch, branchSort, branchType, branches]);
 
   const saveBranch = (branch: BranchRecord) => {
     setBranches((current) => {
@@ -127,48 +152,85 @@ export function OrganizationPage({ onNavigate }: OrganizationPageProps) {
               title={t("organizations.stats.children")}
               value={currentRecord.stats.children}
               icon={<Users className="h-6 w-6" />}
-              onClick={() => undefined}
+              onClick={() => onNavigate?.("children")}
             />
             <StatsCard
               title={t("organizations.stats.groups")}
               value={currentRecord.stats.groups}
               icon={<Building2 className="h-6 w-6" />}
-              onClick={() => undefined}
+              onClick={() => onNavigate?.("groups")}
             />
             <StatsCard
               title={t("organizations.stats.employees")}
               value={currentRecord.stats.employees}
               icon={<UserRoundCheck className="h-6 w-6" />}
-              onClick={() => undefined}
+              onClick={() => onNavigate?.("employees")}
             />
             <StatsCard
               title={t("organizations.stats.finance")}
               value={currentRecord.stats.finance}
               icon={<WalletCards className="h-6 w-6" />}
-              onClick={() => undefined}
+              onClick={() => onNavigate?.("finance")}
             />
           </div>
 
           {!isBranchView ? (
             <Card>
               <CardContent className="space-y-4">
-                <FilterBar
-                  left={<h2 className="text-card-title text-text-primary">{t("organizations.page.branchesTitle")}</h2>}
-                  right={
-                    <>
-                      <Select
-                        className="w-44"
-                        aria-label={t("organizations.actions.newestFirst")}
-                        value="newest"
-                        options={[{ label: t("organizations.actions.newestFirst"), value: "newest" }]}
-                        onChange={() => undefined}
+                <div className="space-y-3">
+                  <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+                    <h2 className="text-card-title text-text-primary">{t("organizations.page.branchesTitle")}</h2>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end xl:justify-end">
+                      <SearchField
+                        className="sm:w-80"
+                        value={branchSearch}
+                        onChange={(event) => setBranchSearch(event.target.value)}
+                        placeholder={t("organizations.filters.search")}
                       />
-                      <Button onClick={() => setModalState({ type: "add" })}>{t("organizations.actions.addBranch")}</Button>
-                    </>
-                  }
-                />
+                      <Select
+                        className="sm:w-44"
+                        aria-label={t("organizations.filters.sort")}
+                        value={branchSort}
+                        options={[
+                          { label: t("organizations.actions.newestFirst"), value: "newest" },
+                          { label: t("organizations.actions.oldestFirst"), value: "oldest" },
+                        ]}
+                        onChange={(event) => setBranchSort(event.target.value)}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        leftIcon={<ListFilter className="h-4 w-4" />}
+                        onClick={() => setBranchFiltersOpen((open) => !open)}
+                        aria-expanded={branchFiltersOpen}
+                      >
+                        {t("common.actions.filters")}
+                      </Button>
+                      <Button onClick={() => setModalState({ type: "add" })}>
+                        {t("organizations.actions.addBranch")}
+                      </Button>
+                    </div>
+                  </div>
 
-                {branches.length ? (
+                  {branchFiltersOpen ? (
+                    <div className="grid gap-3 rounded-xl border border-border-subtle bg-surface-muted/40 p-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <Select
+                        label={t("organizations.filters.organizationType")}
+                        value={branchType}
+                        options={[
+                          { label: t("organizations.filters.allTypes"), value: "all" },
+                          { label: t("organizations.options.generalType"), value: "generalType" },
+                          { label: t("organizations.options.combinedType"), value: "combinedType" },
+                          { label: t("organizations.options.inclusiveType"), value: "inclusiveType" },
+                          { label: t("organizations.options.specializedType"), value: "specializedType" },
+                        ]}
+                        onChange={(event) => setBranchType(event.target.value)}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+
+                {visibleBranches.length ? (
                   <>
                     <TableContainer>
                       <Table className="min-w-[1180px]">
@@ -187,7 +249,7 @@ export function OrganizationPage({ onNavigate }: OrganizationPageProps) {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {branches.map((branch) => (
+                          {visibleBranches.map((branch) => (
                             <TableRow key={branch.id} className="cursor-pointer" onClick={() => setSelectedBranch(branch)}>
                               <TableCell className="font-medium">{branch.rowNumber}</TableCell>
                               <TableCell>{branch.shortName}</TableCell>
@@ -230,7 +292,7 @@ export function OrganizationPage({ onNavigate }: OrganizationPageProps) {
                     </TableContainer>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="text-sm font-medium text-text-secondary">
-                        {t("organizations.page.totalBranches", { count: branches.length })}
+                        {t("organizations.page.totalBranches", { count: visibleBranches.length })}
                       </div>
                       <Pagination page={page} pageCount={2} onPageChange={setPage} />
                     </div>

@@ -12,6 +12,7 @@ export interface NicuDistributionCardProps {
   items: NicuDistributionItem[];
   labels: NicuLabels;
   areaLabel: (area: string) => string;
+  onClick?: () => void;
 }
 
 const legendItems = [
@@ -21,9 +22,21 @@ const legendItems = [
   { key: "u", className: "bg-info-bg text-info-text" },
 ] as const;
 
-export function NicuDistributionCard({ title, description, items, labels, areaLabel }: NicuDistributionCardProps) {
+export function NicuDistributionCard({ title, description, items, labels, areaLabel, onClick }: NicuDistributionCardProps) {
   return (
-    <Card className="h-full">
+    <Card
+      className={onClick ? "h-full cursor-pointer transition-shadow hover:shadow-modal" : "h-full"}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (!onClick) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+    >
       <CardContent className="space-y-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -40,12 +53,17 @@ export function NicuDistributionCard({ title, description, items, labels, areaLa
         </div>
 
         <div className="space-y-2">
-          {items.map((item) => (
-            <div key={item.area} className="grid gap-2 rounded-input border border-border px-3 py-2 lg:grid-cols-[190px_minmax(0,1fr)]">
-              <div className="text-xs font-medium leading-5 text-text-secondary">{areaLabel(item.area)}</div>
-              <StackedNicuBar value={item.value} labels={labels} compact className="min-w-0" />
+          {items.map((item) => {
+            const label = areaLabel(item.area);
+            return (
+            <div key={item.area} className="grid gap-2 rounded-input border border-border px-3 py-2 lg:grid-cols-[minmax(120px,170px)_minmax(0,1fr)]">
+              <div className="min-w-0 truncate text-xs font-medium leading-5 text-text-secondary" title={label}>
+                {label}
+              </div>
+              <StackedNicuBar value={item.value} labels={labels} compact thin className="min-w-0" />
             </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>
