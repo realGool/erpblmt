@@ -9,6 +9,7 @@ import { GroupsPage } from "./app/routes/GroupsPage";
 import { KanbanPage } from "./app/routes/KanbanPage";
 import { OrganizationPage } from "./app/routes/OrganizationPage";
 import { ParentsPage } from "./app/routes/ParentsPage";
+import { ResourcesPage } from "./app/routes/ResourcesPage";
 import { UiKitPage } from "./app/routes/UiKitPage";
 import type { SidebarNavigationKey } from "./components/layout/Sidebar";
 import { I18nProvider } from "./i18n";
@@ -31,8 +32,13 @@ type AppView =
   | "financeTariffs"
   | "financePayments"
   | "financeDebts"
+  | "resourcesInventory"
+  | "resourcesFoodStock"
+  | "resourcesPurchases"
+  | "resourcesSuppliers"
   | "analyticsDashboard"
   | "analyticsDastur"
+  | "analyticsComparison"
   | "analyticsFinance"
   | "analyticsAttendance"
   | "analyticsReports"
@@ -58,8 +64,13 @@ export function App() {
     if (window.location.pathname === "/finance" || window.location.pathname === "/finance/tariffs") return "financeTariffs";
     if (window.location.pathname === "/finance/payments") return "financePayments";
     if (window.location.pathname === "/finance/debts") return "financeDebts";
+    if (window.location.pathname === "/resources" || window.location.pathname === "/resources/inventory") return "resourcesInventory";
+    if (window.location.pathname === "/resources/food-stock") return "resourcesFoodStock";
+    if (window.location.pathname === "/resources/purchases") return "resourcesPurchases";
+    if (window.location.pathname === "/resources/suppliers") return "resourcesSuppliers";
     if (window.location.pathname === "/analytics" || window.location.pathname === "/analytics/dashboard") return "analyticsDashboard";
     if (window.location.pathname === "/analytics/dastur") return "analyticsDastur";
+    if (window.location.pathname === "/analytics/comparison") return "analyticsComparison";
     if (window.location.pathname === "/analytics/finance") return "analyticsFinance";
     if (window.location.pathname === "/analytics/attendance") return "analyticsAttendance";
     if (window.location.pathname === "/analytics/reports") return "analyticsReports";
@@ -111,6 +122,14 @@ export function App() {
       setView("financeDebts");
       return;
     }
+    if (key === "resources" || key === "resourcesInventory") {
+      setView("resourcesInventory");
+      return;
+    }
+    if (key === "resourcesFoodStock" || key === "resourcesPurchases" || key === "resourcesSuppliers") {
+      setView(key);
+      return;
+    }
     if (key === "kanban") {
       setView("kanban");
       return;
@@ -119,7 +138,7 @@ export function App() {
       setView("analyticsDashboard");
       return;
     }
-    if (key === "analyticsDastur" || key === "analyticsFinance" || key === "analyticsAttendance" || key === "analyticsReports") {
+    if (key === "analyticsDastur" || key === "analyticsComparison" || key === "analyticsFinance" || key === "analyticsAttendance" || key === "analyticsReports") {
       setView(key);
       return;
     }
@@ -148,8 +167,13 @@ export function App() {
       {view === "financeTariffs" ? <FinancePage section="tariffs" onNavigate={navigate} /> : null}
       {view === "financePayments" ? <FinancePage section="payments" onNavigate={navigate} /> : null}
       {view === "financeDebts" ? <FinancePage section="debts" onNavigate={navigate} /> : null}
+      {view === "resourcesInventory" ? <ResourcesPage section="inventory" onNavigate={navigate} /> : null}
+      {view === "resourcesFoodStock" ? <ResourcesPage section="foodStock" onNavigate={navigate} /> : null}
+      {view === "resourcesPurchases" ? <ResourcesPage section="purchases" onNavigate={navigate} /> : null}
+      {view === "resourcesSuppliers" ? <ResourcesPage section="suppliers" onNavigate={navigate} /> : null}
       {view === "analyticsDashboard" ? <AnalyticsPage section="dashboard" onNavigate={navigate} /> : null}
       {view === "analyticsDastur" ? <AnalyticsPage section="dastur" onNavigate={navigate} /> : null}
+      {view === "analyticsComparison" ? <AnalyticsPage section="comparison" onNavigate={navigate} /> : null}
       {view === "analyticsFinance" ? <AnalyticsPage section="finance" onNavigate={navigate} /> : null}
       {view === "analyticsAttendance" ? <AnalyticsPage section="attendance" onNavigate={navigate} /> : null}
       {view === "analyticsReports" ? <AnalyticsPage section="reports" onNavigate={navigate} /> : null}

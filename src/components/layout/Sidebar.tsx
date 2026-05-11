@@ -9,6 +9,7 @@ import {
   Gamepad2,
   Library,
   ListChecks,
+  Package,
   UserRound,
   UserRoundPlus,
   Users,
@@ -40,9 +41,15 @@ export type SidebarNavigationKey =
   | "financeTariffs"
   | "financePayments"
   | "financeDebts"
+  | "resources"
+  | "resourcesInventory"
+  | "resourcesFoodStock"
+  | "resourcesPurchases"
+  | "resourcesSuppliers"
   | "analytics"
   | "analyticsDashboard"
   | "analyticsDastur"
+  | "analyticsComparison"
   | "analyticsFinance"
   | "analyticsAttendance"
   | "analyticsReports";
@@ -53,6 +60,7 @@ const navItems = [
   { key: "kanban", labelKey: "navigation.kanban", icon: ListChecks },
   { key: "bilimtoy", labelKey: "navigation.bilimtoy", icon: BookOpen },
   { key: "finance", labelKey: "navigation.finance", icon: CreditCard },
+  { key: "resources", labelKey: "navigation.resources", icon: Package },
   { key: "analytics", labelKey: "navigation.analytics", icon: BarChart3 },
 ] as const;
 
@@ -86,11 +94,21 @@ const financeSubItems = [
   { key: "financeDebts", labelKey: "finance.nav.debts" },
 ] as const;
 
-const analyticsNavigationKeys: SidebarNavigationKey[] = ["analytics", "analyticsDashboard", "analyticsDastur", "analyticsFinance", "analyticsAttendance", "analyticsReports"];
+const resourcesNavigationKeys: SidebarNavigationKey[] = ["resources", "resourcesInventory", "resourcesFoodStock", "resourcesPurchases", "resourcesSuppliers"];
+
+const resourcesSubItems = [
+  { key: "resourcesInventory", labelKey: "resources.nav.inventory" },
+  { key: "resourcesFoodStock", labelKey: "resources.nav.foodStock" },
+  { key: "resourcesPurchases", labelKey: "resources.nav.purchases" },
+  { key: "resourcesSuppliers", labelKey: "resources.nav.suppliers" },
+] as const;
+
+const analyticsNavigationKeys: SidebarNavigationKey[] = ["analytics", "analyticsDashboard", "analyticsDastur", "analyticsComparison", "analyticsFinance", "analyticsAttendance", "analyticsReports"];
 
 const analyticsSubItems = [
   { key: "analyticsDashboard", labelKey: "analytics.nav.dashboard" },
   { key: "analyticsDastur", labelKey: "analytics.nav.dastur" },
+  { key: "analyticsComparison", labelKey: "analytics.nav.comparison" },
   { key: "analyticsFinance", labelKey: "analytics.nav.finance" },
   { key: "analyticsAttendance", labelKey: "analytics.nav.attendance" },
   { key: "analyticsReports", labelKey: "analytics.nav.reports" },
@@ -113,12 +131,14 @@ export function Sidebar({ activeNavigation = "organization", onNavigate }: Sideb
     activeNavigation === "bilimtoy-development-map" ||
     activeNavigation === "bilimtoy-library";
   const financeActive = financeNavigationKeys.includes(activeNavigation);
+  const resourcesActive = resourcesNavigationKeys.includes(activeNavigation);
   const analyticsActive = analyticsNavigationKeys.includes(activeNavigation);
 
   const [childrenParentsExpanded, setChildrenParentsExpanded] = useState(childrenParentsActive);
   const [hrExpanded, setHrExpanded] = useState(hrActive);
   const [bilimtoyExpanded, setBilimtoyExpanded] = useState(bilimtoyActive);
   const [financeExpanded, setFinanceExpanded] = useState(financeActive);
+  const [resourcesExpanded, setResourcesExpanded] = useState(resourcesActive);
   const [analyticsExpanded, setAnalyticsExpanded] = useState(analyticsActive);
 
   const topItems = navItems.slice(0, 2);
@@ -179,6 +199,15 @@ export function Sidebar({ activeNavigation = "organization", onNavigate }: Sideb
               <div key={item.key}>
                 <SidebarGroupButton active={financeActive} expanded={financeExpanded} icon={<item.icon className="h-5 w-5" />} label={t(item.labelKey)} onClick={() => setFinanceExpanded((current) => !current)} />
                 {financeExpanded ? <SidebarSubList items={financeSubItems} activeNavigation={activeNavigation} onNavigate={onNavigate} nested /> : null}
+              </div>
+            );
+          }
+
+          if (item.key === "resources") {
+            return (
+              <div key={item.key}>
+                <SidebarGroupButton active={resourcesActive} expanded={resourcesExpanded} icon={<item.icon className="h-5 w-5" />} label={t(item.labelKey)} onClick={() => setResourcesExpanded((current) => !current)} />
+                {resourcesExpanded ? <SidebarSubList items={resourcesSubItems} activeNavigation={activeNavigation} onNavigate={onNavigate} nested /> : null}
               </div>
             );
           }
