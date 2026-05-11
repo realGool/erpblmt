@@ -1203,6 +1203,28 @@ export const ru = {
     },
   },
   analytics: {
+    units: {
+      millionShort: "млн",
+    },
+    periods: {
+      current: "Текущий цикл",
+      "2026-03": "Март 2026",
+      "2026-04": "Апрель 2026",
+      "2026-05": "Май 2026",
+    },
+    ageGroups: {
+      "3-4": "3–4 года",
+      "4-5": "4–5 лет",
+      "5-6": "5–6 лет",
+      "6-7": "6–7 лет",
+      "3-7": "3–7 лет",
+      "4-7": "4–7 лет",
+    },
+    childAges: {
+      "4": "4 года",
+      "5": "5 лет",
+      "6": "6 лет",
+    },
     nav: {
       dashboard: "Дашборд",
       dastur: "Анализ по Дастуру",
@@ -1236,6 +1258,43 @@ export const ru = {
         aiEvents: "Активные AI-события",
         staffLoad: "Загруженность сотрудников",
         branchScore: "Индекс филиалов",
+      },
+      metricValues: {
+        debts: "186 млн",
+        payroll: "742 млн",
+        branchExpenses: "312 млн",
+        warehouse: "96 млн",
+      },
+      metricDeltas: {
+        newChildren: "+42",
+        newGroups: "+3",
+        attendanceGrowth: "+4%",
+        debtChange: "-8%",
+        may: "май",
+        expensesGrowth: "+12%",
+        stockBalance: "остаток",
+        newAiEvents: "24 новых",
+        staffLoadNormal: "норма",
+        branchScoreGrowth: "+5",
+      },
+      branches: {
+        yunusobod: "Bilimtoy Kids Yunusobod",
+        bolajon: "Детский сад №12 «Болажон»",
+        chilonzor: "Bilimtoy Kids Chilonzor",
+      },
+      alerts: {
+        debt: {
+          title: "Рост задолженности",
+          description: "В филиале «Болажон» долг выше среднего на 14%.",
+        },
+        ai: {
+          title: "AI-события требуют проверки",
+          description: "24 новых гипотезы по речевому развитию ждут подтверждения.",
+        },
+        attendance: {
+          title: "Посещаемость улучшилась",
+          description: "Yunusobod держит 91% посещаемости вторую неделю.",
+        },
       },
     },
     developmentAreas: {
@@ -1298,6 +1357,25 @@ export const ru = {
         subarea: "Подобласть",
         ageGroup: "Возраст",
         branchDistribution: "Распределение по филиалам",
+      },
+      items: {
+        physical: "Физическое развитие и ЗОЖ",
+        grossMotor: "Крупная моторика",
+        walkBalance: "Сохраняет равновесие во время ходьбы по верёвке",
+        walkToes: "Ходит на носочках, пятках, на внешней стороне стопы",
+        runKnees: "Бегает, высоко поднимая колени",
+        fineMotor: "Мелкая моторика",
+        drawLines: "Проводит прямые и волнистые линии по образцу",
+        sensorMotor: "Сенсомоторика",
+        social: "Социально-эмоциональное развитие",
+        communication: "Речь, общение, чтение и письмо",
+        cognitive: "Познавательное развитие",
+        creative: "Творческое развитие",
+      },
+      subareas: {
+        grossMotor: "Крупная моторика",
+        fineMotor: "Мелкая моторика",
+        sensorMotor: "Сенсомоторика",
       },
     },
     comparison: {

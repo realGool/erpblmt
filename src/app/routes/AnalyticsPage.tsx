@@ -38,6 +38,7 @@ import { useI18n } from "../../i18n";
 import { cn } from "../../lib/cn";
 
 type AnalyticsSection = "dashboard" | "dastur" | "comparison" | "finance" | "attendance" | "reports";
+type Translate = (key: string, params?: Record<string, string | number>) => string;
 
 interface AnalyticsPageProps {
   section: AnalyticsSection;
@@ -54,16 +55,16 @@ const sectionNavigation: Record<AnalyticsSection, SidebarNavigationKey> = {
 };
 
 const dashboardMetrics = [
-  { icon: Users, labelKey: "children", value: "1 248", delta: "+42", tone: "primary" },
-  { icon: Building2, labelKey: "groups", value: "64", delta: "+3", tone: "success" },
-  { icon: CalendarCheck2, labelKey: "attendance", value: "87%", delta: "+4%", tone: "success" },
-  { icon: CreditCard, labelKey: "debts", value: "186 млн", delta: "-8%", tone: "danger" },
-  { icon: WalletCards, labelKey: "payroll", value: "742 млн", delta: "май", tone: "warning" },
-  { icon: BarChart3, labelKey: "branchExpenses", value: "312 млн", delta: "+12%", tone: "purple" },
-  { icon: Boxes, labelKey: "warehouse", value: "96 млн", delta: "остаток", tone: "info" },
-  { icon: Activity, labelKey: "aiEvents", value: "128", delta: "24 новых", tone: "primary" },
-  { icon: Gauge, labelKey: "staffLoad", value: "76%", delta: "норма", tone: "success" },
-  { icon: TrendingUp, labelKey: "branchScore", value: "82/100", delta: "+5", tone: "info" },
+  { icon: Users, labelKey: "children", value: "1 248", deltaKey: "newChildren", tone: "primary" },
+  { icon: Building2, labelKey: "groups", value: "64", deltaKey: "newGroups", tone: "success" },
+  { icon: CalendarCheck2, labelKey: "attendance", value: "87%", deltaKey: "attendanceGrowth", tone: "success" },
+  { icon: CreditCard, labelKey: "debts", valueKey: "debts", deltaKey: "debtChange", tone: "danger" },
+  { icon: WalletCards, labelKey: "payroll", valueKey: "payroll", deltaKey: "may", tone: "warning" },
+  { icon: BarChart3, labelKey: "branchExpenses", valueKey: "branchExpenses", deltaKey: "expensesGrowth", tone: "purple" },
+  { icon: Boxes, labelKey: "warehouse", valueKey: "warehouse", deltaKey: "stockBalance", tone: "info" },
+  { icon: Activity, labelKey: "aiEvents", value: "128", deltaKey: "newAiEvents", tone: "primary" },
+  { icon: Gauge, labelKey: "staffLoad", value: "76%", deltaKey: "staffLoadNormal", tone: "success" },
+  { icon: TrendingUp, labelKey: "branchScore", value: "82/100", deltaKey: "branchScoreGrowth", tone: "info" },
 ] as const;
 
 const developmentRows = [
@@ -75,16 +76,113 @@ const developmentRows = [
 ] as const;
 
 const branches = [
-  { name: "Bilimtoy Kids Yunusobod", children: 426, attendance: 91, debt: "54 млн", load: 82 },
-  { name: "Детский сад №12 «Болажон»", children: 384, attendance: 86, debt: "73 млн", load: 74 },
-  { name: "Bilimtoy Kids Chilonzor", children: 438, attendance: 84, debt: "59 млн", load: 71 },
+  { nameKey: "yunusobod", children: 426, attendance: 91, debt: 54, load: 82 },
+  { nameKey: "bolajon", children: 384, attendance: 86, debt: 73, load: 74 },
+  { nameKey: "chilonzor", children: 438, attendance: 84, debt: 59, load: 71 },
 ] as const;
 
 const alerts = [
-  { title: "Рост задолженности", description: "В филиале «Болажон» долг выше среднего на 14%.", tone: "danger" },
-  { title: "AI-события требуют проверки", description: "24 новых гипотезы по речевому развитию ждут подтверждения.", tone: "warning" },
-  { title: "Посещаемость улучшилась", description: "Yunusobod держит 91% посещаемости вторую неделю.", tone: "success" },
+  { key: "debt", tone: "danger" },
+  { key: "ai", tone: "warning" },
+  { key: "attendance", tone: "success" },
 ] as const;
+
+const dasturItemKeys: Record<string, string> = {
+  physical: "physical",
+  "gross-motor": "grossMotor",
+  "walk-balance": "walkBalance",
+  "walk-toes": "walkToes",
+  "run-knees": "runKnees",
+  "fine-motor": "fineMotor",
+  "draw-lines": "drawLines",
+  "sensor-motor": "sensorMotor",
+  social: "social",
+  communication: "communication",
+  cognitive: "cognitive",
+  creative: "creative",
+};
+
+const dasturSubareaKeys: Record<string, string> = {
+  "Крупная моторика": "grossMotor",
+  "Мелкая моторика": "fineMotor",
+  Сенсомоторика: "sensorMotor",
+};
+
+const dasturAreaLabelKeys: Record<string, DasturAreaKey> = {
+  "Физическое развитие и ЗОЖ": "physical",
+  "Социально-эмоциональное развитие": "social",
+  "Речь, общение, чтение и письмо": "speech",
+  "Познавательное развитие": "cognitive",
+  "Творческое развитие": "creative",
+};
+
+const ageGroupValuesByLabel: Record<string, string> = {
+  "3–4 года": "3-4",
+  "4–5 лет": "4-5",
+  "5–6 лет": "5-6",
+  "6–7 лет": "6-7",
+  "3–7 лет": "3-7",
+  "4–7 лет": "4-7",
+};
+
+const childAgeValuesByLabel: Record<string, string> = {
+  "4 года": "4",
+  "5 лет": "5",
+  "6 лет": "6",
+};
+
+function formatMillion(value: number, t: Translate) {
+  return `${value} ${t("analytics.units.millionShort")}`;
+}
+
+function getBranchOptions(t: Translate) {
+  return analyticsBranches.map((option) => ({
+    value: option.value,
+    label: option.value === "all" ? t("analytics.filters.allBranches") : option.label,
+  }));
+}
+
+function getAgeGroupOptions(t: Translate) {
+  return dasturAgeGroups.map((option) => ({
+    value: option.value,
+    label: t(`analytics.ageGroups.${option.value}`),
+  }));
+}
+
+function getPeriodOptions(t: Translate) {
+  return comparisonPeriods.map((option) => ({
+    value: option.value,
+    label: t(`analytics.periods.${option.value}`),
+  }));
+}
+
+function getDasturItemLabel(t: Translate, row: Pick<DasturAnalysisRow, "id" | "title">) {
+  const key = dasturItemKeys[row.id];
+  return key ? t(`analytics.dastur.items.${key}`) : row.title;
+}
+
+function getDasturSubareaLabel(t: Translate, subarea?: string) {
+  if (!subarea) return "";
+  const key = dasturSubareaKeys[subarea];
+  return key ? t(`analytics.dastur.subareas.${key}`) : subarea;
+}
+
+function getDasturAreaLabel(t: Translate, area: string) {
+  const key = dasturAreaLabelKeys[area];
+  return key ? t(`analytics.developmentAreas.${key}`) : area;
+}
+
+function getAgeGroupLabel(t: Translate, label?: string) {
+  if (!label) return "";
+  const value = ageGroupValuesByLabel[label];
+  return value ? t(`analytics.ageGroups.${value}`) : label;
+}
+
+function getChildAgeLabel(t: Translate, label?: string) {
+  if (!label) return "";
+  const value = childAgeValuesByLabel[label];
+  return value ? t(`analytics.childAges.${value}`) : label;
+}
 
 export function AnalyticsPage({ section, onNavigate }: AnalyticsPageProps) {
   return (
@@ -99,6 +197,7 @@ export function AnalyticsPage({ section, onNavigate }: AnalyticsPageProps) {
 
 function AnalyticsDashboard() {
   const { t } = useI18n();
+  const branchOptions = getBranchOptions(t);
 
   return (
     <PageContainer>
@@ -113,7 +212,7 @@ function AnalyticsDashboard() {
           left={
             <div className="flex flex-wrap gap-3">
               <Select aria-label={t("analytics.filters.period")} defaultValue="current" options={[{ label: t("analytics.filters.currentCycle"), value: "current" }, { label: t("analytics.filters.month"), value: "month" }]} />
-              <Select aria-label={t("analytics.filters.branch")} defaultValue="all" options={[{ label: t("analytics.filters.allBranches"), value: "all" }, { label: "Bilimtoy Kids Yunusobod", value: "yunusobod" }, { label: "Детский сад №12 «Болажон»", value: "bolajon" }]} />
+              <Select aria-label={t("analytics.filters.branch")} defaultValue="all" options={branchOptions.slice(0, 3)} />
             </div>
           }
           right={<Badge variant="success">{t("analytics.dashboard.realtime")}</Badge>}
@@ -143,14 +242,14 @@ function AnalyticsDashboard() {
             </CardHeader>
             <CardContent className="space-y-3">
               {alerts.map((alert) => (
-                <div key={alert.title} className="rounded-card border border-border bg-page p-4">
+                <div key={alert.key} className="rounded-card border border-border bg-page p-4">
                   <div className="flex items-start gap-3">
                     <div className={cn("mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-input", alert.tone === "danger" ? "bg-danger-bg text-danger-text" : alert.tone === "warning" ? "bg-warning-bg text-warning-text" : "bg-success-bg text-success-text")}>
                       <AlertTriangle className="h-5 w-5" />
                     </div>
                     <div>
-                      <div className="font-semibold text-text-primary">{alert.title}</div>
-                      <div className="mt-1 text-sm leading-5 text-text-secondary">{alert.description}</div>
+                      <div className="font-semibold text-text-primary">{t(`analytics.dashboard.alerts.${alert.key}.title`)}</div>
+                      <div className="mt-1 text-sm leading-5 text-text-secondary">{t(`analytics.dashboard.alerts.${alert.key}.description`)}</div>
                     </div>
                   </div>
                 </div>
@@ -166,7 +265,7 @@ function AnalyticsDashboard() {
           <CardContent>
             <div className="grid gap-4 xl:grid-cols-3">
               {branches.map((branch) => (
-                <BranchCard key={branch.name} branch={branch} />
+                <BranchCard key={branch.nameKey} branch={branch} />
               ))}
             </div>
           </CardContent>
@@ -180,6 +279,7 @@ function MetricCard({ metric }: { metric: (typeof dashboardMetrics)[number] }) {
   const { t } = useI18n();
   const Icon = metric.icon;
   const toneClass = metric.tone === "success" ? "bg-success-bg text-success-text" : metric.tone === "danger" ? "bg-danger-bg text-danger-text" : metric.tone === "warning" ? "bg-warning-bg text-warning-text" : metric.tone === "purple" ? "bg-purple-bg text-purple-text" : metric.tone === "info" ? "bg-info-bg text-info-text" : "bg-primary-soft text-primary";
+  const value = "valueKey" in metric ? t(`analytics.dashboard.metricValues.${metric.valueKey}`) : metric.value;
 
   return (
     <Card>
@@ -188,9 +288,9 @@ function MetricCard({ metric }: { metric: (typeof dashboardMetrics)[number] }) {
           <div className={cn("flex h-11 w-11 items-center justify-center rounded-input", toneClass)}>
             <Icon className="h-5 w-5" />
           </div>
-          <Badge variant="neutral">{metric.delta}</Badge>
+          <Badge variant="neutral">{t(`analytics.dashboard.metricDeltas.${metric.deltaKey}`)}</Badge>
         </div>
-        <div className="mt-4 text-2xl font-semibold text-text-primary">{metric.value}</div>
+        <div className="mt-4 text-2xl font-semibold text-text-primary">{value}</div>
         <div className="mt-1 text-sm text-text-secondary">{t(`analytics.dashboard.metrics.${metric.labelKey}`)}</div>
       </CardContent>
     </Card>
@@ -230,11 +330,11 @@ function BranchCard({ branch }: { branch: (typeof branches)[number] }) {
 
   return (
     <div className="rounded-card border border-border bg-page p-4">
-      <div className="font-semibold text-text-primary">{branch.name}</div>
+      <div className="font-semibold text-text-primary">{t(`analytics.dashboard.branches.${branch.nameKey}`)}</div>
       <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <BranchMetric label={t("analytics.dashboard.metrics.children")} value={String(branch.children)} />
         <BranchMetric label={t("analytics.dashboard.metrics.attendance")} value={`${branch.attendance}%`} />
-        <BranchMetric label={t("analytics.dashboard.metrics.debts")} value={branch.debt} />
+        <BranchMetric label={t("analytics.dashboard.metrics.debts")} value={formatMillion(branch.debt, t)} />
         <BranchMetric label={t("analytics.dashboard.metrics.staffLoad")} value={`${branch.load}%`} />
       </div>
       <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface">
@@ -272,15 +372,18 @@ function DasturAnalysisView() {
   const filteredRows = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
     return dasturAnalysisRows.filter((row) => {
+      const title = getDasturItemLabel(t, row).toLocaleLowerCase();
+      const area = getDasturAreaLabel(t, row.area).toLocaleLowerCase();
+      const subarea = getDasturSubareaLabel(t, row.subarea).toLocaleLowerCase();
       const matchesQuery =
         !normalizedQuery ||
-        row.title.toLocaleLowerCase().includes(normalizedQuery) ||
-        row.area.toLocaleLowerCase().includes(normalizedQuery) ||
-        row.subarea?.toLocaleLowerCase().includes(normalizedQuery);
+        title.includes(normalizedQuery) ||
+        area.includes(normalizedQuery) ||
+        subarea.includes(normalizedQuery);
       const matchesSource = source === "all" || row.source === source || row.source === "none";
       return matchesQuery && matchesSource;
     });
-  }, [query, source]);
+  }, [query, source, t]);
 
   const selectedIndicator = selectedIndicatorId ? dasturIndicatorDetails[selectedIndicatorId] : null;
 
@@ -320,8 +423,8 @@ function DasturAnalysisView() {
                   { label: t("analytics.dastur.aggregation.branches"), value: "branches" },
                 ]}
               />
-              <Select label={t("analytics.dastur.filters.branch")} value={branch} onChange={(event) => setBranch(event.target.value)} options={analyticsBranches} />
-              <Select label={t("analytics.dastur.filters.ageGroup")} value={ageGroup} onChange={(event) => setAgeGroup(event.target.value)} options={dasturAgeGroups} />
+              <Select label={t("analytics.dastur.filters.branch")} value={branch} onChange={(event) => setBranch(event.target.value)} options={getBranchOptions(t)} />
+              <Select label={t("analytics.dastur.filters.ageGroup")} value={ageGroup} onChange={(event) => setAgeGroup(event.target.value)} options={getAgeGroupOptions(t)} />
             </div>
             <div className="grid gap-4 lg:grid-cols-[minmax(220px,320px)_repeat(4,minmax(120px,1fr))]">
               <Select
@@ -388,14 +491,16 @@ function DasturStat({ title, value, icon }: { title: string; value: string; icon
 function DasturTableRow({ row, onSelect }: { row: DasturAnalysisRow; onSelect: () => void }) {
   const { t } = useI18n();
   const isIndicator = row.type === "indicator";
+  const title = getDasturItemLabel(t, row);
+  const subarea = getDasturSubareaLabel(t, row.subarea);
 
   return (
     <TableRow className={cn(isIndicator && "cursor-pointer")} onClick={onSelect}>
       <TableCell>
         <div className={cn("flex items-center gap-2", row.type === "subarea" && "pl-5", row.type === "indicator" && "pl-10")}>
           <div>
-            <div className={cn("font-medium text-text-primary", row.type === "area" && "font-semibold")}>{row.title}</div>
-            {row.subarea && row.type === "indicator" ? <div className="mt-1 text-xs text-text-muted">{row.subarea}</div> : null}
+            <div className={cn("font-medium text-text-primary", row.type === "area" && "font-semibold")}>{title}</div>
+            {subarea && row.type === "indicator" ? <div className="mt-1 text-xs text-text-muted">{subarea}</div> : null}
           </div>
         </div>
       </TableCell>
@@ -448,7 +553,7 @@ function DasturIndicatorPanel({ indicator, onClose }: { indicator: NonNullable<(
         <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border bg-surface px-6 py-5">
           <div>
             <div className="text-sm font-medium text-primary">{t("analytics.dastur.detail.title")}</div>
-            <h2 className="mt-1 text-xl font-semibold text-text-primary">{indicator.title}</h2>
+            <h2 className="mt-1 text-xl font-semibold text-text-primary">{getDasturItemLabel(t, indicator)}</h2>
           </div>
           <Button variant="ghost" size="icon" aria-label={t("common.actions.close")} onClick={onClose}>
             <X className="h-5 w-5" />
@@ -457,9 +562,9 @@ function DasturIndicatorPanel({ indicator, onClose }: { indicator: NonNullable<(
         <div className="space-y-5 px-6 py-5">
           <Card>
             <CardContent className="space-y-3">
-              <DetailLine label={t("analytics.dastur.detail.area")} value={indicator.area} />
-              <DetailLine label={t("analytics.dastur.detail.subarea")} value={indicator.subarea} />
-              <DetailLine label={t("analytics.dastur.detail.ageGroup")} value={indicator.ageGroup} />
+              <DetailLine label={t("analytics.dastur.detail.area")} value={getDasturAreaLabel(t, indicator.area)} />
+              <DetailLine label={t("analytics.dastur.detail.subarea")} value={getDasturSubareaLabel(t, indicator.subarea)} />
+              <DetailLine label={t("analytics.dastur.detail.ageGroup")} value={getAgeGroupLabel(t, indicator.ageGroup)} />
             </CardContent>
           </Card>
           <Card>
@@ -516,6 +621,7 @@ function ComparisonAnalysisView() {
   const visibleGroups = comparisonGroups.filter((group) => group.branchId === branchId);
   const selectedGroups = comparisonGroups.filter((group) => selectedGroupIds.includes(group.id));
   const selectedChildren = comparisonChildren.filter((child) => selectedChildIds.includes(child.id));
+  const periodOptions = getPeriodOptions(t);
 
   const toggleValue = (value: string, values: string[], setValues: (values: string[]) => void) => {
     setValues(values.includes(value) ? values.filter((item) => item !== value) : [...values, value]);
@@ -542,7 +648,7 @@ function ComparisonAnalysisView() {
               <CardContent className="space-y-4">
                 <ComparisonFilterTitle />
                 <div className="grid gap-4 lg:grid-cols-[minmax(240px,320px)_minmax(0,1fr)]">
-                  <Select label={t("analytics.comparison.filters.ageGroup")} value="all" onChange={() => undefined} options={[{ label: t("analytics.comparison.filters.allAgeGroups"), value: "all" }, ...dasturAgeGroups]} />
+                  <Select label={t("analytics.comparison.filters.ageGroup")} value="all" onChange={() => undefined} options={[{ label: t("analytics.comparison.filters.allAgeGroups"), value: "all" }, ...getAgeGroupOptions(t)]} />
                   <CheckboxGrid
                     title={t("analytics.comparison.filters.branches")}
                     items={comparisonBranches.map((branch) => ({ id: branch.id, label: branch.name, description: t("analytics.comparison.childrenCount", { count: branch.childrenCount }) }))}
@@ -561,10 +667,10 @@ function ComparisonAnalysisView() {
                 <ComparisonFilterTitle />
                 <div className="grid gap-4 lg:grid-cols-[minmax(240px,320px)_minmax(240px,320px)_minmax(0,1fr)]">
                   <Select label={t("analytics.comparison.filters.branch")} value={branchId} onChange={(event) => setBranchId(event.target.value)} options={comparisonBranches.map((branch) => ({ label: branch.name, value: branch.id }))} />
-                  <Select label={t("analytics.comparison.filters.period")} value={period} onChange={(event) => setPeriod(event.target.value)} options={comparisonPeriods} />
+                  <Select label={t("analytics.comparison.filters.period")} value={period} onChange={(event) => setPeriod(event.target.value)} options={periodOptions} />
                   <CheckboxGrid
                     title={t("analytics.comparison.filters.groups")}
-                    items={visibleGroups.map((group) => ({ id: group.id, label: group.name, description: `${group.ageGroup} · ${t("analytics.comparison.childrenCount", { count: group.childrenCount })}` }))}
+                    items={visibleGroups.map((group) => ({ id: group.id, label: group.name, description: `${getAgeGroupLabel(t, group.ageGroup)} · ${t("analytics.comparison.childrenCount", { count: group.childrenCount })}` }))}
                     selectedIds={selectedGroupIds}
                     onToggle={(id) => toggleValue(id, selectedGroupIds, setSelectedGroupIds)}
                   />
@@ -579,10 +685,10 @@ function ComparisonAnalysisView() {
               <CardContent className="space-y-4">
                 <ComparisonFilterTitle />
                 <div className="grid gap-4 lg:grid-cols-[minmax(240px,320px)_minmax(0,1fr)]">
-                  <Select label={t("analytics.comparison.filters.period")} value={period} onChange={(event) => setPeriod(event.target.value)} options={comparisonPeriods} />
+                  <Select label={t("analytics.comparison.filters.period")} value={period} onChange={(event) => setPeriod(event.target.value)} options={periodOptions} />
                   <CheckboxGrid
                     title={t("analytics.comparison.filters.children")}
-                    items={comparisonChildren.map((child) => ({ id: child.id, label: child.fullName, description: `${child.groupName} · ${child.age}` }))}
+                    items={comparisonChildren.map((child) => ({ id: child.id, label: child.fullName, description: `${child.groupName} · ${getChildAgeLabel(t, child.age)}` }))}
                     selectedIds={selectedChildIds}
                     onToggle={(id) => toggleValue(id, selectedChildIds, setSelectedChildIds)}
                   />
@@ -706,8 +812,8 @@ function ScoreComparisonTable({
                 <div className="font-semibold text-text-primary">{row.name ?? row.fullName}</div>
                 <div className="mt-1 text-xs text-text-muted">
                   {kind === "groups"
-                    ? `${row.branchName} · ${row.ageGroup} · ${t("analytics.comparison.childrenCount", { count: row.childrenCount ?? 0 })}`
-                    : `${row.groupName} · ${row.age}`}
+                    ? `${row.branchName} · ${getAgeGroupLabel(t, row.ageGroup)} · ${t("analytics.comparison.childrenCount", { count: row.childrenCount ?? 0 })}`
+                    : `${row.groupName} · ${getChildAgeLabel(t, row.age)}`}
                 </div>
               </TableCell>
               {dasturAreaKeys.map((area) => (
